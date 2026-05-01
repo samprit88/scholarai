@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ScholarAI - Timetable</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "secondary-fixed-dim": "#ffb869",
+                        "surface-container-low": "#fbf1fa",
+                        "surface-container": "#f5ebf4",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f8eef7",
+                        "inverse-surface": "#342f35",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#875206",
+                        "tertiary-fixed": "#f8e382",
+                        "on-error": "#ffffff",
+                        "on-surface": "#1f1a20",
+                        "primary": "#612586",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#ecc4ff",
+                        "surface-variant": "#e9dfe9",
+                        "on-background": "#1f1a20",
+                        "on-tertiary-fixed-variant": "#524600",
+                        "surface-container-high": "#efe5ee",
+                        "primary-fixed-dim": "#e5b4ff",
+                        "on-tertiary-container": "#4a3f00",
+                        "surface-dim": "#e1d7e0",
+                        "background": "#fff7fc",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#fcb565",
+                        "outline-variant": "#cfc2d2",
+                        "inverse-primary": "#e5b4ff",
+                        "secondary-fixed": "#ffdcbb",
+                        "surface": "#fff7fc",
+                        "on-primary-fixed-variant": "#65298a",
+                        "tertiary-fixed-dim": "#dbc769",
+                        "on-secondary-fixed": "#2b1700",
+                        "surface-tint": "#7f43a4",
+                        "on-tertiary-fixed": "#211b00",
+                        "tertiary": "#6d5e06",
+                        "on-surface-variant": "#4d4450",
+                        "tertiary-container": "#beab51",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#7b3fa0",
+                        "primary-fixed": "#f4d9ff",
+                        "on-secondary-fixed-variant": "#673d00",
+                        "surface-bright": "#fff7fc",
+                        "on-secondary-container": "#754600",
+                        "surface-container-highest": "#e9dfe9",
+                        "on-primary-fixed": "#30004b",
+                        "outline": "#7e7481"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "h3": ["Noto Serif"],
+                        "button": ["Plus Jakarta Sans"],
+                        "h1": ["Noto Serif"],
+                        "h2": ["Noto Serif"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "playfair": ["Playfair Display", "serif"]
+                    },
+                    fontSize: {
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "caption": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "h3": ["18px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "button": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "h1": ["28px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "body-lg": ["15px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #FAF3E8; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: rgba(232, 217, 196, 0.4); backdrop-filter: blur(8px); border: 1px solid rgba(45, 27, 78, 0.1); }
+        .timetable-grid { display: grid; grid-template-columns: 60px repeat(5, 1fr); }
+        .plum-tint { background-color: rgba(123, 63, 160, 0.05); }
+        .timeline-gradient { background: linear-gradient(to bottom, #e5e7eb 0%, #7b3fa0 50%, #7b3fa0 100%); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-on-surface antialiased min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-orange-50 dark:bg-slate-950 border-b border-purple-900/10 dark:border-purple-300/10 shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center overflow-hidden border border-primary/20">
+<img alt="Scholar Profile" data-alt="close-up portrait of a scholarly young person in a library, warm golden hour lighting, cinematic focus" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDL_ulfVzBko5qzU-vFf620p5a7LaYqTUy4KWBV3nzlKlq-rwnZiw-pmEYd6OBj8aHIwa5muGFPiJKFtpOE4YBrih9P4lFXf4WpezhcD_GKXbEqmIJCQCS2W2Q94N2LduAMIY__pXhVJPfrVaZ0ounUKwSHGP9AwsMF31fkx9KFeezCefRN4om9RfzHpZWhVMVRlv9Sw9gzVd-tdZNUhhU1RIzGySy2eii8W4TU40eqoqJkaW9jOD2eTJ5RIijojlisH9cAjS20c9bi"/>
+</div>
+<span class="font-serif text-2xl font-bold text-purple-950 dark:text-purple-100">ScholarAI</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors text-purple-900 dark:text-purple-300 active:scale-98 duration-200">
+<span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
+</button>
+</div>
+</header>
+<main class="pt-24 px-container-margin max-w-6xl mx-auto">
+<!-- Header Section -->
+<div class="mb-10 text-center md:text-left">
+<h1 class="font-playfair text-4xl font-bold text-primary mb-2">Weekly Academic Schedule</h1>
+<p class="font-body-lg text-outline italic">"The beautiful thing about learning is that no one can take it away from you."</p>
+</div>
+<!-- Timetable Grid -->
+<div class="overflow-x-auto rounded-xl shadow-lg bg-[#E8D9C4]/30 border border-primary/10">
+<div class="min-w-[800px]">
+<!-- Day Headers -->
+<div class="timetable-grid border-b border-primary/10 bg-[#E8D9C4]/50">
+<div class="p-4"></div>
+<div class="p-4 text-center font-playfair text-xl font-semibold text-primary">Monday</div>
+<div class="p-4 text-center font-playfair text-xl font-semibold text-primary">Tuesday</div>
+<div class="p-4 text-center font-playfair text-xl font-semibold text-primary plum-tint">Wednesday</div>
+<div class="p-4 text-center font-playfair text-xl font-semibold text-primary">Thursday</div>
+<div class="p-4 text-center font-playfair text-xl font-semibold text-primary">Friday</div>
+</div>
+<!-- Timetable Body -->
+<div class="relative">
+<!-- Time Rows -->
+<div class="timetable-grid h-24 border-b border-primary/5">
+<div class="p-2 text-right font-caption text-[#7B3FA0]/70 flex items-start justify-end pt-4">09:00</div>
+<div class="p-2 relative">
+<div class="bg-primary p-3 rounded-lg shadow-sm h-full flex flex-col justify-center">
+<span class="text-xs font-bold text-primary-fixed uppercase tracking-tighter mb-1">Lecture</span>
+<span class="font-playfair text-white text-sm leading-tight">Astrophysics</span>
+<span class="text-[10px] text-white/70">Hall 7</span>
+</div>
+</div>
+<div class="p-2"></div>
+<div class="p-2 plum-tint"></div>
+<div class="p-2">
+<div class="bg-primary p-3 rounded-lg shadow-sm h-full flex flex-col justify-center">
+<span class="text-xs font-bold text-primary-fixed uppercase tracking-tighter mb-1">Seminar</span>
+<span class="font-playfair text-white text-sm leading-tight">Quant Theory</span>
+<span class="text-[10px] text-white/70">Lab B</span>
+</div>
+</div>
+<div class="p-2"></div>
+</div>
+<div class="timetable-grid h-24 border-b border-primary/5">
+<div class="p-2 text-right font-caption text-[#7B3FA0]/70 flex items-start justify-end pt-4">10:30</div>
+<div class="p-2"></div>
+<div class="p-2">
+<div class="bg-primary p-3 rounded-lg shadow-sm h-full flex flex-col justify-center">
+<span class="text-xs font-bold text-primary-fixed uppercase tracking-tighter mb-1">Lab</span>
+<span class="font-playfair text-white text-sm leading-tight">Bio-Informatics</span>
+<span class="text-[10px] text-white/70">West Wing</span>
+</div>
+</div>
+<div class="p-2 plum-tint">
+<div class="bg-primary p-3 rounded-lg shadow-md h-full flex flex-col justify-center ring-2 ring-secondary">
+<span class="text-xs font-bold text-primary-fixed uppercase tracking-tighter mb-1">Current Class</span>
+<span class="font-playfair text-white text-sm leading-tight">Advanced Lit</span>
+<span class="text-[10px] text-white/70">Room 302</span>
+</div>
+</div>
+<div class="p-2"></div>
+<div class="p-2"></div>
+</div>
+<div class="timetable-grid h-24 border-b border-primary/5">
+<div class="p-2 text-right font-caption text-[#7B3FA0]/70 flex items-start justify-end pt-4">12:00</div>
+<div class="p-2"></div>
+<div class="p-2"></div>
+<div class="p-2 plum-tint"></div>
+<div class="p-2"></div>
+<div class="p-2">
+<div class="bg-primary p-3 rounded-lg shadow-sm h-full flex flex-col justify-center">
+<span class="text-xs font-bold text-primary-fixed uppercase tracking-tighter mb-1">Tutorial</span>
+<span class="font-playfair text-white text-sm leading-tight">Game Theory</span>
+<span class="text-[10px] text-white/70">Hall 3</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Today Timeline -->
+<section class="mt-16 mb-24 max-w-2xl mx-auto">
+<h2 class="font-playfair text-3xl font-bold text-primary mb-8 border-b border-primary/10 pb-4">Focus: Today</h2>
+<div class="relative pl-8">
+<!-- Vertical Line -->
+<div class="absolute left-[7px] top-0 bottom-0 w-[2px] bg-primary"></div>
+<!-- Past Item -->
+<div class="relative mb-12">
+<div class="absolute -left-[29px] top-2 w-4 h-4 rounded-full bg-[#E8D9C4] border-2 border-primary/30"></div>
+<div class="flex flex-col">
+<span class="font-caption text-secondary/60">08:30 — 09:30</span>
+<h3 class="font-playfair text-xl text-primary/40 line-through">Morning Ethics Seminar</h3>
+<p class="text-body-md text-outline italic">Status: Completed • Room 101</p>
+</div>
+</div>
+<!-- Current Item -->
+<div class="relative mb-12">
+<div class="absolute -left-[31px] top-2 w-5 h-5 rounded-full bg-secondary shadow-[0_0_15px_rgba(196,133,58,0.5)] flex items-center justify-center">
+<div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+</div>
+<div class="flex flex-col bg-[#E8D9C4] p-6 rounded-xl border-l-4 border-secondary shadow-md">
+<span class="font-caption text-secondary font-bold uppercase tracking-widest mb-1">Happening Now</span>
+<h3 class="font-playfair text-2xl text-primary mb-2">Advanced Literature Studies</h3>
+<div class="flex items-center gap-4">
+<div class="flex items-center text-body-md text-outline">
+<span class="material-symbols-outlined text-sm mr-1" data-icon="room">room</span> Room 302
+                            </div>
+<div class="flex items-center text-body-md text-outline">
+<span class="material-symbols-outlined text-sm mr-1" data-icon="schedule">schedule</span> 10:30 — 12:00
+                            </div>
+</div>
+</div>
+</div>
+<!-- Upcoming Item -->
+<div class="relative mb-12">
+<div class="absolute -left-[29px] top-2 w-4 h-4 rounded-full bg-primary"></div>
+<div class="flex flex-col">
+<span class="font-caption text-primary/60">14:00 — 15:30</span>
+<h3 class="font-playfair text-xl text-primary">AI Research Principles</h3>
+<p class="text-body-md text-outline">Upcoming • Digital Lab 4</p>
+</div>
+</div>
+<!-- Final Milestone -->
+<div class="relative">
+<div class="absolute -left-[29px] top-2 w-4 h-4 rounded-full border-2 border-primary/30 bg-background"></div>
+<div class="flex flex-col">
+<span class="font-caption text-primary/40">16:00</span>
+<h3 class="font-playfair text-xl text-primary/40">End of Day</h3>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-safe bg-[#FAF3E8] dark:bg-[#1A161F] border-t border-purple-900/10 dark:border-purple-300/10 shadow-[0_-4px_20px_-5px_rgba(45,27,78,0.12)] rounded-t-2xl">
+<a class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Notes</span>
+</a>
+<a class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Vault</span>
+</a>
+<a class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Tasks</span>
+</a>
+<a class="flex flex-col items-center justify-center text-amber-700 dark:text-amber-500 bg-amber-500/10 rounded-xl px-3 py-1 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today" style="font-variation-settings: 'FILL' 1;">calendar_today</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Schedule</span>
+</a>
+</nav>
+</body></html>

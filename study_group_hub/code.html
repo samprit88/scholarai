@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#ffb869",
+                    "surface-container-low": "#fbf1fa",
+                    "surface-container": "#f5ebf4",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#f8eef7",
+                    "inverse-surface": "#342f35",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary": "#875206",
+                    "tertiary-fixed": "#f8e382",
+                    "on-error": "#ffffff",
+                    "on-surface": "#1f1a20",
+                    "primary": "#612586",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-container": "#ecc4ff",
+                    "surface-variant": "#e9dfe9",
+                    "on-background": "#1f1a20",
+                    "on-tertiary-fixed-variant": "#524600",
+                    "surface-container-high": "#efe5ee",
+                    "primary-fixed-dim": "#e5b4ff",
+                    "on-tertiary-container": "#4a3f00",
+                    "surface-dim": "#e1d7e0",
+                    "background": "#fff7fc",
+                    "on-secondary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "secondary-container": "#fcb565",
+                    "outline-variant": "#cfc2d2",
+                    "inverse-primary": "#e5b4ff",
+                    "secondary-fixed": "#ffdcbb",
+                    "surface": "#fff7fc",
+                    "on-primary-fixed-variant": "#65298a",
+                    "tertiary-fixed-dim": "#dbc769",
+                    "on-secondary-fixed": "#2b1700",
+                    "surface-tint": "#7f43a4",
+                    "on-tertiary-fixed": "#211b00",
+                    "tertiary": "#6d5e06",
+                    "on-surface-variant": "#4d4450",
+                    "tertiary-container": "#beab51",
+                    "error-container": "#ffdad6",
+                    "primary-container": "#7b3fa0",
+                    "primary-fixed": "#f4d9ff",
+                    "on-secondary-fixed-variant": "#673d00",
+                    "surface-bright": "#fff7fc",
+                    "on-secondary-container": "#754600",
+                    "surface-container-highest": "#e9dfe9",
+                    "on-primary-fixed": "#30004b",
+                    "outline": "#7e7481",
+                    "parchment-base": "#FAF3E8",
+                    "parchment-card": "#E8D9C4",
+                    "plum-deep": "#2D1B4E",
+                    "gold-accent": "#C4853A",
+                    "sage-accent": "#718355"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "study": "18px",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "body-md": ["Plus Jakarta Sans"],
+                    "caption": ["Plus Jakarta Sans"],
+                    "h3": ["Noto Serif"],
+                    "button": ["Plus Jakarta Sans"],
+                    "h1": ["Noto Serif"],
+                    "h2": ["Noto Serif"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "playfair": ["Playfair Display", "serif"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "caption": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "h3": ["18px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "button": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "body-lg": ["15px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-shadow {
+            box-shadow: inset 0 2px 4px rgba(45, 27, 78, 0.05);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-parchment-base min-h-screen text-on-surface pb-24">
+<!-- Top Navigation -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-orange-50 border-b border-purple-900/10 shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container overflow-hidden">
+<img alt="Scholar Profile" class="w-full h-full object-cover" data-alt="close-up portrait of a thoughtful young academic in a library setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkSaaQbU1_2rgQpyJdUA2Pn5bIvVzod8Y7ovgo2Miwtqk-qb9wTtTKtEoqXB_zI1-jf386CTl6xBYpj3FE8Bvlq-hW0L6zSRg49JfrG78tAEI9StRsAeKjUdbZHXMajAeOxygngTLrRfrYyYoVt2WGKJSbm8YuRN7oMS_cNN4d8dRINZoI8ptlVO7cLeZzPgfmUovlsMf-t76OvjUiWRJC9ciyFhnJ5J1trOSltxDD8_LzufmIznkVuWXx1H-YSrfnv8_O1fuJrwkn"/>
+</div>
+<h1 class="font-serif text-2xl font-bold text-purple-950">ScholarAI</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-purple-900/60 hover:bg-amber-500/10 p-2 rounded-full transition-colors cursor-pointer" data-icon="auto_awesome">auto_awesome</span>
+</div>
+</header>
+<main class="pt-20 px-4 max-w-5xl mx-auto space-y-8">
+<!-- Header Section -->
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="shield" style="font-variation-settings: 'FILL' 1;">shield</span>
+<h2 class="font-playfair text-3xl text-plum-deep tracking-tight">Philosophy Study Circle</h2>
+</div>
+<!-- Members Section -->
+<div class="flex items-center -space-x-3">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white border-2 border-parchment-base font-button text-caption">AK</div>
+<div class="w-10 h-10 rounded-full bg-gold-accent flex items-center justify-center text-white border-2 border-parchment-base font-button text-caption">JM</div>
+<div class="w-10 h-10 rounded-full bg-sage-accent flex items-center justify-center text-white border-2 border-parchment-base font-button text-caption">SD</div>
+<div class="w-10 h-10 rounded-full bg-parchment-card flex items-center justify-center text-plum-deep border-2 border-parchment-base font-button text-caption border-dashed">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+</div>
+<span class="pl-6 font-body-md text-on-surface-variant italic">12 active scholars</span>
+</div>
+</div>
+<button class="bg-sage-accent text-white px-6 py-3 rounded-study font-button flex items-center gap-2 shadow-sm hover:brightness-110 transition-all">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+                Share on WhatsApp
+            </button>
+</section>
+<!-- Main Content Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Left Column: Shared Notes (Large Section) -->
+<section class="md:col-span-8 space-y-6">
+<div class="flex items-center justify-between">
+<h3 class="font-h2 text-h2 text-plum-deep">Shared Notes</h3>
+<div class="flex gap-2">
+<span class="material-symbols-outlined p-2 text-outline cursor-pointer" data-icon="filter_list">filter_list</span>
+<span class="material-symbols-outlined p-2 text-outline cursor-pointer" data-icon="search">search</span>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<!-- Note Card 1 -->
+<div class="bg-parchment-card p-5 rounded-study border border-plum-deep/5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="bg-gold-accent/10 text-gold-accent px-3 py-1 rounded-full text-caption font-button">METAPHYSICS</span>
+<img alt="AK Avatar" class="w-6 h-6 rounded-full border border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGbEI1Kk6-XXECl5_PouIw7GDzQgvjyw-FgD46fr_MpRhINTdoZNkpOp7dFdrPtrPCHGDELUdj7TEVjKTv_eR9WsnbaZS1t70btd2oM5eRAGiXnn9Jz9AuIeSvVR_lIKj5nY5yVjhxbH9cQxcu3l2jf8ZCAN9WmQIGZbFzkCjXXWtxDkmiuNJod2VWi2Z1JwWU6p3NI4bu2Px-E3HmQYAEbHeyoeVpnwmVuAg3BS6i_sP3ofpPuDwWXV9wioZMZvQVGaSFqjfcw3wa"/>
+</div>
+<h4 class="font-playfair text-lg text-plum-deep leading-tight">The Ship of Theseus: Paradoxes in Identity</h4>
+<p class="font-body-md text-on-surface-variant line-clamp-2">Exploring the continuity of the self through structural changes...</p>
+</div>
+<div class="pt-4 mt-4 border-t border-plum-deep/5 flex items-center justify-between">
+<span class="font-caption text-on-surface-variant">Updated 2h ago</span>
+<button class="border border-primary text-primary px-4 py-2 rounded-lg font-button text-sm hover:bg-primary hover:text-white transition-colors">View</button>
+</div>
+</div>
+<!-- Note Card 2 -->
+<div class="bg-parchment-card p-5 rounded-study border border-plum-deep/5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="bg-gold-accent/10 text-gold-accent px-3 py-1 rounded-full text-caption font-button">EPISTEMOLOGY</span>
+<img alt="SD Avatar" class="w-6 h-6 rounded-full border border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXCC9JkDDqzWxxTD9S9c3v6LuNSK_YqTwesY51reEIgy1wcPmwdhcLGKRMKo-nKd47ufcmxS4mc53FNDG6D-MVm302ZmsmwLAwzM9S3HjrE2g4oOXi4aWZF-KneWZKPivCOka4CGzaZE-QucuzRRTrHJVkUAJ1fv_suMHWHdwAAhC7qJ3k5LT7M1C73GTpvOhW6A032QeWgxf84dxTSDzPh8xh1QItvJWiM55aeonMeKY076ce7VOMiFjEFxBpa1epFU8e67FwPbhk"/>
+</div>
+<h4 class="font-playfair text-lg text-plum-deep leading-tight">Plato's Allegory: A Modern Reinterpretation</h4>
+<p class="font-body-md text-on-surface-variant line-clamp-2">How digital simulations mirror the cavern walls of old...</p>
+</div>
+<div class="pt-4 mt-4 border-t border-plum-deep/5 flex items-center justify-between">
+<span class="font-caption text-on-surface-variant">Updated Yesterday</span>
+<button class="border border-primary text-primary px-4 py-2 rounded-lg font-button text-sm hover:bg-primary hover:text-white transition-colors">View</button>
+</div>
+</div>
+<!-- Note Card 3 (Hero Aesthetic) -->
+<div class="sm:col-span-2 bg-plum-deep p-6 rounded-study shadow-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-gold-accent/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div class="space-y-2">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-gold-accent" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-gold-accent text-caption font-button tracking-widest uppercase">Featured Seminar</span>
+</div>
+<h4 class="font-playfair text-2xl text-white">Existentialism in the 21st Century</h4>
+<p class="text-on-primary-container/80 font-body-md max-w-md">Comprehensive analysis of Sartre and Camus through the lens of modern social connectivity.</p>
+</div>
+<button class="bg-gold-accent text-plum-deep px-8 py-3 rounded-full font-button shadow-xl hover:scale-105 transition-transform shrink-0">Open Manuscript</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Column: Events & Invites -->
+<aside class="md:col-span-4 space-y-6">
+<!-- Invite Code Card -->
+<div class="bg-plum-deep p-6 rounded-study shadow-xl text-center space-y-4">
+<span class="text-white/60 font-button text-caption tracking-widest uppercase">Circle Invite Code</span>
+<div class="bg-white/10 border border-white/20 py-4 rounded-xl">
+<p class="font-playfair text-3xl text-gold-accent tracking-[0.2em]">PHI-882-X</p>
+</div>
+<button class="w-full bg-gold-accent text-plum-deep py-3 rounded-lg font-button flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="content_copy">content_copy</span>
+                        Copy Invite Link
+                    </button>
+</div>
+<!-- Group Events -->
+<div class="space-y-4">
+<h3 class="font-h3 text-h3 text-plum-deep px-2">Group Events</h3>
+<div class="space-y-3">
+<!-- Event 1 -->
+<div class="bg-sage-accent/10 border-l-4 border-sage-accent p-4 rounded-r-study space-y-2">
+<div class="flex justify-between items-start">
+<h5 class="font-button text-plum-deep">Socratic Debate Night</h5>
+<span class="bg-sage-accent text-white text-[10px] px-2 py-0.5 rounded-full">LIVE</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant font-caption">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                                Tonight at 8:00 PM
+                            </div>
+</div>
+<!-- Event 2 -->
+<div class="bg-white/50 border border-plum-deep/5 p-4 rounded-study space-y-2">
+<h5 class="font-button text-plum-deep">Weekly Thesis Review</h5>
+<div class="flex items-center gap-2 text-on-surface-variant font-caption">
+<span class="material-symbols-outlined text-sm" data-icon="calendar_today">calendar_today</span>
+                                Friday, Oct 24 • 2:00 PM
+                            </div>
+</div>
+</div>
+<button class="w-full py-3 border-2 border-dashed border-plum-deep/10 rounded-study text-on-surface-variant font-button text-sm hover:bg-plum-deep/5 transition-colors">
+                        + Schedule New Event
+                    </button>
+</div>
+<!-- Collaborative Activity -->
+<div class="bg-parchment-card p-5 rounded-study border border-plum-deep/5 space-y-4">
+<h3 class="font-caption font-bold text-plum-deep/40 tracking-wider uppercase">Live Activity</h3>
+<div class="space-y-4">
+<div class="flex gap-3">
+<div class="w-2 h-2 mt-2 rounded-full bg-green-500 animate-pulse shrink-0"></div>
+<p class="font-body-md text-on-surface"><strong>Julian</strong> is annotating <em>Ethics 101</em></p>
+</div>
+<div class="flex gap-3">
+<div class="w-2 h-2 mt-2 rounded-full bg-amber-500 shrink-0"></div>
+<p class="font-body-md text-on-surface"><strong>Sarah</strong> added 3 new citations</p>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-safe bg-[#FAF3E8] border-t border-purple-900/10 shadow-[0_-4px_20px_-5px_rgba(45,27,78,0.12)] rounded-t-2xl">
+<a class="flex flex-col items-center justify-center text-purple-900/50 hover:text-purple-900 transition-transform active:scale-90 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-purple-900/50 hover:text-purple-900 transition-transform active:scale-90 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Notes</span>
+</a>
+<a class="flex flex-col items-center justify-center text-amber-700 bg-amber-500/10 rounded-xl px-3 py-1 transition-transform active:scale-90 duration-150 active-nav-shadow" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open" style="font-variation-settings: 'FILL' 1;">folder_open</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Vault</span>
+</a>
+<a class="flex flex-col items-center justify-center text-purple-900/50 hover:text-purple-900 transition-transform active:scale-90 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Tasks</span>
+</a>
+<a class="flex flex-col items-center justify-center text-purple-900/50 hover:text-purple-900 transition-transform active:scale-90 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Schedule</span>
+</a>
+</nav>
+</body></html>

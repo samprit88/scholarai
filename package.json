@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "cors": "^2.8.6",
+    "express": "^4.22.1"
+  }
+}

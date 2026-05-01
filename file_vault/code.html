@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ScholarAI - File Vault</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#ffb869",
+                    "surface-container-low": "#fbf1fa",
+                    "surface-container": "#f5ebf4",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#f8eef7",
+                    "inverse-surface": "#342f35",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary": "#875206",
+                    "tertiary-fixed": "#f8e382",
+                    "on-error": "#ffffff",
+                    "on-surface": "#1f1a20",
+                    "primary": "#612586",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-container": "#ecc4ff",
+                    "surface-variant": "#e9dfe9",
+                    "on-background": "#1f1a20",
+                    "on-tertiary-fixed-variant": "#524600",
+                    "surface-container-high": "#efe5ee",
+                    "primary-fixed-dim": "#e5b4ff",
+                    "on-tertiary-container": "#4a3f00",
+                    "surface-container-highest": "#e9dfe9",
+                    "on-primary-fixed": "#30004b",
+                    "outline": "#7e7481",
+                    "parchment-base": "#FAF3E8",
+                    "parchment-card": "#E8D9C4",
+                    "deep-plum": "#2D1B4E",
+                    "scholar-gold": "#C4853A"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "gutter": "16px",
+                    "xs": "4px",
+                    "xl": "40px",
+                    "container-margin": "24px",
+                    "md": "16px",
+                    "base": "4px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "body-md": ["Plus Jakarta Sans"],
+                    "caption": ["Plus Jakarta Sans"],
+                    "h3": ["Noto Serif"],
+                    "button": ["Plus Jakarta Sans"],
+                    "h1": ["Noto Serif"],
+                    "h2": ["Noto Serif"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "playfair": ["Playfair Display", "serif"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "caption": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "h3": ["18px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "button": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "body-lg": ["15px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #FAF3E8;
+            color: #1f1a20;
+        }
+        .parchment-texture {
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md parchment-texture min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-orange-50 dark:bg-slate-950 border-b border-purple-900/10 dark:border-purple-300/10 shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container overflow-hidden">
+<img alt="Scholar Profile" class="w-full h-full object-cover" data-alt="portrait of a professional academic scholar in a library setting with warm intellectual lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAY3cDbYq1Yyt9LrKdk5cFW_bD52QdOVYA-2srXPEsIq1ajUFBtgysu8kSFMZl1kwjVXvjZQxtjTs7lS1IeIMv5VDb2359B8wNSm7y4cswFmm_qTIbQKzraRc1f8MRDZ95nnj_5TIVm5FMSZTwN1tXeaozmzzSW4VKvsfXCozwHhXwbOlpZXpNeYDTR1sy4ACcVrrZs4R5Bak7yrpwf-tq9vNOV4wBBwN7EnCvluB2KawJPl8hAIxkrQ_G3p_e2wTxp88vlauKrKkVj"/>
+</div>
+<h1 class="font-serif text-2xl font-bold text-purple-950 dark:text-purple-100">ScholarAI</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-purple-900 dark:text-purple-300 hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors active:scale-98 duration-200">
+<span class="material-symbols-outlined">auto_awesome</span>
+</button>
+</header>
+<main class="pt-24 px-container-margin max-w-5xl mx-auto">
+<!-- Search & Capacity Section -->
+<div class="space-y-lg mb-xl">
+<!-- Search Bar -->
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full h-12 pl-12 pr-4 bg-parchment-card/50 border border-purple-900/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-body-md" placeholder="Search your archive..." type="text"/>
+</div>
+<!-- Storage Capacity Card -->
+<div class="bg-parchment-card border border-purple-900/10 rounded-2xl p-md shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)]">
+<div class="flex justify-between items-end mb-sm">
+<div>
+<h2 class="font-playfair text-h3 text-deep-plum">Vault Storage</h2>
+<p class="text-caption text-outline uppercase tracking-wider">Academic Archive</p>
+</div>
+<span class="font-body-md font-semibold text-scholar-gold">64GB of 100GB used</span>
+</div>
+<div class="w-full h-3 bg-parchment-base rounded-full overflow-hidden border border-purple-900/5">
+<div class="h-full bg-scholar-gold w-[64%] rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]"></div>
+</div>
+</div>
+</div>
+<!-- Subject Folder Grid -->
+<section class="mb-xl">
+<h3 class="font-playfair text-h2 text-deep-plum mb-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">folder_shared</span>
+                Subjects
+            </h3>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-md">
+<!-- Philosophy -->
+<div class="bg-parchment-card border border-purple-900/10 rounded-2xl p-lg flex flex-col gap-sm hover:shadow-md transition-shadow cursor-pointer group">
+<span class="material-symbols-outlined text-4xl text-primary mb-2 group-hover:scale-110 transition-transform">folder</span>
+<h4 class="font-playfair text-lg font-bold text-deep-plum">Philosophy</h4>
+<div class="flex flex-wrap gap-xs mt-auto">
+<span class="bg-scholar-gold/10 text-scholar-gold text-[10px] font-bold px-2 py-0.5 rounded-full">24 FILES</span>
+<span class="bg-surface-container text-outline text-[10px] font-medium px-2 py-0.5 rounded-full">2D AGO</span>
+</div>
+</div>
+<!-- Literature -->
+<div class="bg-parchment-card border border-purple-900/10 rounded-2xl p-lg flex flex-col gap-sm hover:shadow-md transition-shadow cursor-pointer group">
+<span class="material-symbols-outlined text-4xl text-primary mb-2 group-hover:scale-110 transition-transform">folder</span>
+<h4 class="font-playfair text-lg font-bold text-deep-plum">Literature</h4>
+<div class="flex flex-wrap gap-xs mt-auto">
+<span class="bg-scholar-gold/10 text-scholar-gold text-[10px] font-bold px-2 py-0.5 rounded-full">18 FILES</span>
+<span class="bg-surface-container text-outline text-[10px] font-medium px-2 py-0.5 rounded-full">5H AGO</span>
+</div>
+</div>
+<!-- History -->
+<div class="bg-parchment-card border border-purple-900/10 rounded-2xl p-lg flex flex-col gap-sm hover:shadow-md transition-shadow cursor-pointer group">
+<span class="material-symbols-outlined text-4xl text-primary mb-2 group-hover:scale-110 transition-transform">folder</span>
+<h4 class="font-playfair text-lg font-bold text-deep-plum">History</h4>
+<div class="flex flex-wrap gap-xs mt-auto">
+<span class="bg-scholar-gold/10 text-scholar-gold text-[10px] font-bold px-2 py-0.5 rounded-full">42 FILES</span>
+<span class="bg-surface-container text-outline text-[10px] font-medium px-2 py-0.5 rounded-full">1W AGO</span>
+</div>
+</div>
+<!-- Calculus -->
+<div class="bg-parchment-card border border-purple-900/10 rounded-2xl p-lg flex flex-col gap-sm hover:shadow-md transition-shadow cursor-pointer group">
+<span class="material-symbols-outlined text-4xl text-primary mb-2 group-hover:scale-110 transition-transform">folder</span>
+<h4 class="font-playfair text-lg font-bold text-deep-plum">Calculus</h4>
+<div class="flex flex-wrap gap-xs mt-auto">
+<span class="bg-scholar-gold/10 text-scholar-gold text-[10px] font-bold px-2 py-0.5 rounded-full">12 FILES</span>
+<span class="bg-surface-container text-outline text-[10px] font-medium px-2 py-0.5 rounded-full">3D AGO</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Inside Folder List -->
+<section>
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-playfair text-h3 text-deep-plum">Recent Documents</h3>
+<button class="text-caption font-bold text-primary flex items-center gap-1 uppercase tracking-widest">View All <span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+</div>
+<div class="space-y-sm">
+<!-- File 1 -->
+<div class="bg-parchment-card border border-purple-900/5 rounded-xl p-md flex items-center justify-between hover:bg-parchment-card/80 transition-colors cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<div>
+<p class="font-body-md font-semibold text-deep-plum">Socrates_Dialogues.pdf</p>
+<p class="text-caption text-outline">Philosophy • 4.2 MB • Oct 12, 2023</p>
+</div>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- File 2 -->
+<div class="bg-parchment-card border border-purple-900/5 rounded-xl p-md flex items-center justify-between hover:bg-parchment-card/80 transition-colors cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-scholar-gold/10 flex items-center justify-center text-scholar-gold">
+<span class="material-symbols-outlined">audio_file</span>
+</div>
+<div>
+<p class="font-body-md font-semibold text-deep-plum">Lecture_Audio.mp3</p>
+<p class="text-caption text-outline">Literature • 12.8 MB • Oct 14, 2023</p>
+</div>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- File 3 -->
+<div class="bg-parchment-card border border-purple-900/5 rounded-xl p-md flex items-center justify-between hover:bg-parchment-card/80 transition-colors cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-[#5F7D61]/10 flex items-center justify-center text-[#5F7D61]">
+<span class="material-symbols-outlined">description</span>
+</div>
+<div>
+<p class="font-body-md font-semibold text-deep-plum">Revision_Guide.docx</p>
+<p class="text-caption text-outline">History • 1.1 MB • Yesterday</p>
+</div>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Upload FAB -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-deep-plum text-parchment-base rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform z-40">
+<span class="material-symbols-outlined text-3xl">upload_file</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-safe bg-[#FAF3E8] dark:bg-[#1A161F] border-t border-purple-900/10 dark:border-purple-300/10 shadow-[0_-4px_20px_-5px_rgba(45,27,78,0.12)] rounded-t-2xl">
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">description</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Notes</span>
+</div>
+<div class="flex flex-col items-center justify-center text-amber-700 dark:text-amber-500 bg-amber-500/10 rounded-xl px-3 py-1 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">folder_open</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Vault</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">assignment</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Tasks</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase">Schedule</span>
+</div>
+</nav>
+</body></html>

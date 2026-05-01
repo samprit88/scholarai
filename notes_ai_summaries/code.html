@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#ffb869",
+                        "surface-container-low": "#fbf1fa",
+                        "surface-container": "#f5ebf4",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f8eef7",
+                        "inverse-surface": "#342f35",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#875206",
+                        "tertiary-fixed": "#f8e382",
+                        "on-error": "#ffffff",
+                        "on-surface": "#1f1a20",
+                        "primary": "#612586",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#ecc4ff",
+                        "surface-variant": "#e9dfe9",
+                        "on-background": "#1f1a20",
+                        "on-tertiary-fixed-variant": "#524600",
+                        "surface-container-high": "#efe5ee",
+                        "primary-fixed-dim": "#e5b4ff",
+                        "on-tertiary-container": "#4a3f00",
+                        "surface-dim": "#e1d7e0",
+                        "background": "#FAF3E8",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#fcb565",
+                        "outline-variant": "#cfc2d2",
+                        "inverse-primary": "#e5b4ff",
+                        "secondary-fixed": "#ffdcbb",
+                        "surface": "#FAF3E8",
+                        "on-primary-fixed-variant": "#65298a",
+                        "tertiary-fixed-dim": "#dbc769",
+                        "on-secondary-fixed": "#2b1700",
+                        "surface-tint": "#7f43a4",
+                        "on-tertiary-fixed": "#211b00",
+                        "tertiary": "#6d5e06",
+                        "on-surface-variant": "#4d4450",
+                        "tertiary-container": "#beab51",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#7b3fa0",
+                        "primary-fixed": "#f4d9ff",
+                        "on-secondary-fixed-variant": "#673d00",
+                        "surface-bright": "#FAF3E8",
+                        "on-secondary-container": "#754600",
+                        "surface-container-highest": "#e9dfe9",
+                        "on-primary-fixed": "#30004b",
+                        "outline": "#7e7481",
+                        "parchment-card": "#E8D9C4",
+                        "dusty-lavender": "#9B8AB4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "18px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "xl": "40px",
+                        "container-margin": "24px",
+                        "md": "16px",
+                        "base": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "h3": ["Noto Serif"],
+                        "button": ["Plus Jakarta Sans"],
+                        "h1": ["Noto Serif"],
+                        "h2": ["Noto Serif"],
+                        "body-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "caption": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "h3": ["18px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "button": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "h1": ["28px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "body-lg": ["15px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-pill {
+            background-color: #2D1B4E;
+            color: #FAF3E8;
+        }
+        .inactive-pill {
+            background-color: #E8D9C4;
+            color: #7E7481;
+        }
+        body {
+            background-color: #FAF3E8;
+            color: #1f1a20;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-on-surface antialiased pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-orange-50 dark:bg-slate-950 border-b border-purple-900/10 dark:border-purple-300/10 shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary-container overflow-hidden ring-2 ring-primary/20">
+<img alt="Scholar Profile" class="w-full h-full object-cover" data-alt="close-up portrait of a scholarly person with glasses in a soft-lit vintage library setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfkTbO3oj58jh3mTJQ1Es_fxloEiHTeaOd1NwCuBPNVTSvU6-4lyPsU9kZHz54lBelDcKXes40qqyyS4YGv2MnixehwGIpdYy4s_-1fuW7sGREF17LqQ43Mlrj2um1kSIqVhfa8ANiKPFT9U-Oc5glLLAGDg7QmsHlKY8PKTbxlkxmRigvqHFutFsLZOLpErPgVeQjFwitV3_88HIv-tO_mvbqrW4soolpiCzW3qXRpGKMp2MTqxCBY-R5VaTM39jJbh5wZkG73gkQ"/>
+</div>
+<span class="font-serif text-2xl font-bold text-purple-950 dark:text-purple-100">ScholarAI</span>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors active:scale-98 duration-200">
+<span class="material-symbols-outlined text-purple-900 dark:text-purple-300" data-icon="auto_awesome">auto_awesome</span>
+</button>
+</header>
+<main class="pt-20 px-container-margin max-w-5xl mx-auto">
+<!-- Subject Filter Tabs -->
+<nav class="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar mb-4 mt-2">
+<button class="px-5 py-2 rounded-full active-pill font-button text-button shadow-sm whitespace-nowrap">All</button>
+<button class="px-5 py-2 rounded-full inactive-pill font-button text-button hover:bg-secondary-container/20 transition-colors whitespace-nowrap">Philosophy</button>
+<button class="px-5 py-2 rounded-full inactive-pill font-button text-button hover:bg-secondary-container/20 transition-colors whitespace-nowrap">History</button>
+<button class="px-5 py-2 rounded-full inactive-pill font-button text-button hover:bg-secondary-container/20 transition-colors whitespace-nowrap">Physics</button>
+<button class="px-5 py-2 rounded-full inactive-pill font-button text-button hover:bg-secondary-container/20 transition-colors whitespace-nowrap">Literature</button>
+</nav>
+<!-- Search Bar -->
+<div class="relative mb-8">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline" data-icon="search">search</span>
+<input class="w-full pl-12 pr-4 py-4 bg-parchment-card/40 border-0 border-b-2 border-transparent focus:ring-0 focus:border-primary transition-all rounded-xl font-body-lg text-body-lg shadow-inner placeholder:text-outline/60" placeholder="Search your scholarly repository..." type="text"/>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left Column: Note List -->
+<div class="lg:col-span-5 space-y-6">
+<!-- Note Card 1 (Active Preview) -->
+<article class="bg-parchment-card border-l-4 border-primary rounded-xl p-6 shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)] ring-1 ring-black/5">
+<div class="flex justify-between items-start mb-2">
+<h2 class="font-h3 text-h3 text-primary">The Republic - Book I</h2>
+<span class="text-caption font-caption text-dusty-lavender">Oct 12, 2023</span>
+</div>
+<p class="text-body-md text-on-surface-variant line-clamp-2">Socrates explores the nature of justice and whether the just man is happier than the unjust man. Thrasymachus argues that justice is the advantage of the stronger...</p>
+</article>
+<!-- Note Card 2 -->
+<article class="bg-parchment-card/60 border-l-4 border-outline/20 rounded-xl p-6 hover:bg-parchment-card transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<h2 class="font-h3 text-h3 text-on-surface/80">Metaphysics of Presence</h2>
+<span class="text-caption font-caption text-dusty-lavender">Oct 10, 2023</span>
+</div>
+<p class="text-body-md text-on-surface-variant line-clamp-2">Derrida's critique of logocentrism in Western philosophy. The prioritization of speech over writing and the concept of 'differance'...</p>
+</article>
+<!-- Note Card 3 -->
+<article class="bg-parchment-card/60 border-l-4 border-outline/20 rounded-xl p-6 hover:bg-parchment-card transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<h2 class="font-h3 text-h3 text-on-surface/80">Quantum Entanglement</h2>
+<span class="text-caption font-caption text-dusty-lavender">Sep 28, 2023</span>
+</div>
+<p class="text-body-md text-on-surface-variant line-clamp-2">Observations on the EPR paradox and Bell's theorem. Non-locality and the spooky action at a distance as described by Einstein...</p>
+</article>
+</div>
+<!-- Right Column: Expanded Note View -->
+<div class="lg:col-span-7 bg-white/40 backdrop-blur-sm rounded-xl border border-outline-variant p-8 shadow-xl">
+<header class="mb-8">
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase tracking-wider">Philosophy</span>
+<span class="text-caption font-caption text-dusty-lavender">• 12 min read</span>
+</div>
+<h1 class="font-h1 text-h1 text-purple-950 mb-2">The Republic - Book I</h1>
+<p class="text-caption font-caption text-dusty-lavender italic">Last synced via ScholarAI Cloud at 14:32 today</p>
+</header>
+<!-- AI Summary Section -->
+<section class="mb-8 p-6 bg-secondary-fixed/30 border-l-4 border-secondary rounded-r-xl">
+<div class="flex items-center gap-2 mb-3 text-secondary">
+<span class="material-symbols-outlined text-lg" data-icon="auto_awesome">auto_awesome</span>
+<h3 class="font-button text-button uppercase tracking-widest">ScholarAI Summary</h3>
+</div>
+<p class="text-body-lg text-secondary-fixed-variant leading-relaxed">
+                        This section introduces the central theme of the dialogue: What is justice? Socrates deconstructs traditional definitions (returning what is owed, helping friends/harming enemies) before Thrasymachus introduces a radical, cynical perspective based on power dynamics.
+                    </p>
+</section>
+<!-- Key Concepts -->
+<section class="mb-8">
+<h3 class="font-h3 text-h3 text-primary mb-4">Key Concepts</h3>
+<div class="flex flex-wrap gap-2">
+<span class="px-4 py-1.5 bg-primary text-white rounded-full font-button text-caption shadow-sm">Dikaiosyne (Justice)</span>
+<span class="px-4 py-1.5 bg-primary text-white rounded-full font-button text-caption shadow-sm">Polemarchus' Definition</span>
+<span class="px-4 py-1.5 bg-primary text-white rounded-full font-button text-caption shadow-sm">Thrasymachus</span>
+<span class="px-4 py-1.5 bg-primary text-white rounded-full font-button text-caption shadow-sm">The Craft Analogy</span>
+<span class="px-4 py-1.5 bg-primary text-white rounded-full font-button text-caption shadow-sm">Socratic Irony</span>
+</div>
+</section>
+<!-- Exam Questions -->
+<section>
+<h3 class="font-h3 text-h3 text-primary mb-4">Potential Exam Questions</h3>
+<ul class="space-y-4">
+<li class="flex gap-3">
+<span class="material-symbols-outlined text-secondary shrink-0" data-icon="quiz">quiz</span>
+<span class="text-body-lg text-on-surface-variant">How does Socrates use the analogy of a physician to counter Thrasymachus' claim that rulers act only for their own benefit?</span>
+</li>
+<li class="flex gap-3">
+<span class="material-symbols-outlined text-secondary shrink-0" data-icon="quiz">quiz</span>
+<span class="text-body-lg text-on-surface-variant">Identify the logical fallacy Socrates exposes in Polemarchus' definition of justice regarding 'helping friends and harming enemies'.</span>
+</li>
+<li class="flex gap-3">
+<span class="material-symbols-outlined text-secondary shrink-0" data-icon="quiz">quiz</span>
+<span class="text-body-lg text-on-surface-variant">Compare the concept of justice as a "craft" (techne) versus justice as a "virtue" (arete) as discussed in the closing arguments of Book I.</span>
+</li>
+</ul>
+</section>
+</div>
+</div>
+</main>
+<!-- FAB: Add Note -->
+<button class="fixed bottom-24 right-6 w-16 h-16 bg-primary text-on-primary rounded-xl shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-50">
+<span class="material-symbols-outlined text-3xl text-secondary-fixed" data-icon="add">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-safe bg-[#FAF3E8] dark:bg-[#1A161F] border-t border-purple-900/10 dark:border-purple-300/10 shadow-[0_-4px_20px_-5px_rgba(45,27,78,0.12)] rounded-t-2xl">
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 active:scale-90 transition-transform duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-amber-700 dark:text-amber-500 bg-amber-500/10 rounded-xl px-3 py-1 active:scale-90 transition-transform duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="description" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Notes</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 transition-colors active:scale-90 duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Vault</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 transition-colors active:scale-90 duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Tasks</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 transition-colors active:scale-90 duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Schedule</span>
+</div>
+</nav>
+</body></html>

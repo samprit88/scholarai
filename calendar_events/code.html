@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ScholarAI - Calendar &amp; Events</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#ffb869",
+                    "surface-container-low": "#fbf1fa",
+                    "surface-container": "#f5ebf4",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#f8eef7",
+                    "inverse-surface": "#342f35",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary": "#875206",
+                    "tertiary-fixed": "#f8e382",
+                    "on-error": "#ffffff",
+                    "on-surface": "#1f1a20",
+                    "primary": "#612586",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-container": "#ecc4ff",
+                    "surface-variant": "#e9dfe9",
+                    "on-background": "#1f1a20",
+                    "on-tertiary-fixed-variant": "#524600",
+                    "surface-container-high": "#efe5ee",
+                    "primary-fixed-dim": "#e5b4ff",
+                    "on-tertiary-container": "#4a3f00",
+                    "surface-dim": "#e1d7e0",
+                    "background": "#FAF3E8",
+                    "on-secondary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "secondary-container": "#fcb565",
+                    "outline-variant": "#cfc2d2",
+                    "inverse-primary": "#e5b4ff",
+                    "secondary-fixed": "#ffdcbb",
+                    "surface": "#FAF3E8",
+                    "on-primary-fixed-variant": "#65298a",
+                    "tertiary-fixed-dim": "#dbc769",
+                    "on-secondary-fixed": "#2b1700",
+                    "surface-tint": "#7f43a4",
+                    "on-tertiary-fixed": "#211b00",
+                    "tertiary": "#6d5e06",
+                    "on-surface-variant": "#4d4450",
+                    "tertiary-container": "#beab51",
+                    "error-container": "#ffdad6",
+                    "primary-container": "#7b3fa0",
+                    "primary-fixed": "#f4d9ff",
+                    "on-secondary-fixed-variant": "#673d00",
+                    "surface-bright": "#fff7fc",
+                    "on-secondary-container": "#754600",
+                    "surface-container-highest": "#e9dfe9",
+                    "on-primary-fixed": "#30004b",
+                    "outline": "#7e7481"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "18px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "gutter": "16px",
+                    "xs": "4px",
+                    "xl": "40px",
+                    "container-margin": "24px",
+                    "md": "16px",
+                    "base": "4px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "body-md": ["Plus Jakarta Sans"],
+                    "caption": ["Plus Jakarta Sans"],
+                    "h3": ["Noto Serif"],
+                    "button": ["Plus Jakarta Sans"],
+                    "h1": ["Noto Serif"],
+                    "h2": ["Noto Serif"],
+                    "body-lg": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "caption": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "h3": ["18px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "button": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "body-lg": ["15px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #FAF3E8;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+        .parchment-card {
+            background-color: #E8D9C4;
+            border: 1px solid rgba(45, 27, 78, 0.12);
+        }
+        .ink-pressed:active {
+            transform: scale(0.98);
+            box-shadow: inset 0 2px 4px rgba(45, 27, 78, 0.1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-on-surface selection:bg-secondary-fixed-dim selection:text-on-secondary-fixed">
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-orange-50 dark:bg-slate-950 border-b border-purple-900/10 dark:border-purple-300/10 shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden">
+<img alt="Scholar Profile" data-alt="close-up portrait of a classical scholar statue silhouette against a soft lavender background with grain texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwvebMTHrqQKJ38yV6ZOtwiXto0OkLHZJZymFTKVIdfNnCws-YGBDoFm4zw7Jc4SH_wPfhwiE2g-Kw9DUKWbaQQW9mlAkNKvu4deypHBP0CRVJcypk8QIMl2HlLzhA4cwju2U43uWEuGDFi-ANn0jI5jabv7b5SG87eYNksib_gsZRhO5nVIom7GYlsLhNV_jgFt7QB9ZBVKvJPL0dt9BOoUsXqeGaiboU4MtSphi4MmVBohAldDVCtxCqID-wwLckFZ47wmvXqFnq"/>
+</div>
+<span class="font-serif text-2xl font-bold text-purple-950 dark:text-purple-100">ScholarAI</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-purple-900 dark:text-purple-300 hover:bg-amber-500/10 p-2 rounded-full transition-colors active:scale-98 duration-200" data-icon="auto_awesome">auto_awesome</button>
+</div>
+</header>
+<main class="pt-20 pb-28 px-container-margin max-w-2xl mx-auto min-h-screen">
+<!-- Monthly Calendar Section -->
+<section class="mb-lg">
+<div class="flex items-center justify-between mb-md px-1">
+<h2 class="font-h2 text-h2 text-primary">October 2023</h2>
+<div class="flex gap-2">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high rounded-full p-1" data-icon="chevron_left">chevron_left</button>
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high rounded-full p-1" data-icon="chevron_right">chevron_right</button>
+</div>
+</div>
+<!-- Calendar Container -->
+<div class="parchment-card rounded-xl p-md shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)]">
+<div class="calendar-grid text-center font-button text-caption text-outline mb-sm">
+<div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+</div>
+<div class="calendar-grid text-center font-body-md gap-y-2">
+<!-- Week 1 -->
+<div class="py-2 text-outline/40">26</div>
+<div class="py-2 text-outline/40">27</div>
+<div class="py-2 text-outline/40">28</div>
+<div class="py-2 text-outline/40">29</div>
+<div class="py-2 text-outline/40">30</div>
+<div class="py-2 text-primary">1</div>
+<div class="py-2 text-primary">2</div>
+<!-- Week 2 -->
+<div class="py-2 text-primary relative">3<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-secondary"></div></div>
+<div class="py-2 text-primary">4</div>
+<div class="py-2 text-primary">5</div>
+<div class="py-2 text-primary">6</div>
+<div class="py-2 text-primary">7</div>
+<div class="py-2 text-primary relative">8<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></div></div>
+<div class="py-2 text-primary">9</div>
+<!-- Week 3 -->
+<div class="py-2 text-primary">10</div>
+<div class="py-2 text-primary">11</div>
+<div class="py-2 text-primary relative">12<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-green-600"></div></div>
+<div class="py-2 flex items-center justify-center">
+<span class="w-8 h-8 rounded-full bg-primary text-background flex items-center justify-center font-bold shadow-sm">13</span>
+</div>
+<div class="py-2 text-primary">14</div>
+<div class="py-2 text-primary">15</div>
+<div class="py-2 text-primary">16</div>
+<!-- Week 4 -->
+<div class="py-2 text-primary relative">17<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-secondary"></div></div>
+<div class="py-2 text-primary">18</div>
+<div class="py-2 text-primary">19</div>
+<div class="py-2 text-primary">20</div>
+<div class="py-2 text-primary">21</div>
+<div class="py-2 text-primary">22</div>
+<div class="py-2 text-primary">23</div>
+</div>
+</div>
+<!-- Legend -->
+<div class="flex gap-gutter mt-md px-1 overflow-x-auto pb-2 scrollbar-hide">
+<div class="flex items-center gap-2 whitespace-nowrap">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-caption text-outline">Assignments</span>
+</div>
+<div class="flex items-center gap-2 whitespace-nowrap">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-caption text-outline">Exams</span>
+</div>
+<div class="flex items-center gap-2 whitespace-nowrap">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="text-caption text-outline">Events</span>
+</div>
+</div>
+</section>
+<!-- Upcoming Events List -->
+<section>
+<div class="flex items-center justify-between mb-md px-1">
+<h3 class="font-h3 text-h3 text-primary">Upcoming Events</h3>
+<span class="text-caption text-secondary font-bold">Oct 14 - Oct 20</span>
+</div>
+<div class="space-y-gutter">
+<!-- Event Card 1 -->
+<div class="parchment-card rounded-xl p-gutter shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)] ink-pressed transition-all flex items-start justify-between">
+<div>
+<span class="inline-block px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-bold uppercase tracking-wider mb-2">Exam</span>
+<h4 class="font-h2 text-h3 text-primary leading-tight mb-1">Midterm: Art History</h4>
+<div class="flex items-center gap-2 text-caption text-outline">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_month">calendar_month</span>
+<span>Monday, Oct 17 • 10:00 AM</span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-caption font-bold text-primary bg-primary/5 px-2 py-1 rounded-lg">3 Days Left</span>
+</div>
+</div>
+<!-- Event Card 2 -->
+<div class="parchment-card rounded-xl p-gutter shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)] ink-pressed transition-all flex items-start justify-between">
+<div>
+<span class="inline-block px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider mb-2">Assignment</span>
+<h4 class="font-h2 text-h3 text-primary leading-tight mb-1">Thesis Draft Submission</h4>
+<div class="flex items-center gap-2 text-caption text-outline">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_month">calendar_month</span>
+<span>Wednesday, Oct 19 • 11:59 PM</span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-caption font-bold text-outline bg-outline/5 px-2 py-1 rounded-lg">5 Days Left</span>
+</div>
+</div>
+<!-- Event Card 3 -->
+<div class="parchment-card rounded-xl p-gutter shadow-[0_2px_15px_-3px_rgba(45,27,78,0.08)] ink-pressed transition-all flex items-start justify-between">
+<div>
+<span class="inline-block px-2 py-0.5 rounded-full bg-green-600/10 text-green-700 text-[10px] font-bold uppercase tracking-wider mb-2">Event</span>
+<h4 class="font-h2 text-h3 text-primary leading-tight mb-1">Faculty Seminar: Ethics of AI</h4>
+<div class="flex items-center gap-2 text-caption text-outline">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_month">calendar_month</span>
+<span>Thursday, Oct 20 • 4:30 PM</span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-caption font-bold text-outline bg-outline/5 px-2 py-1 rounded-lg">6 Days Left</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary text-background rounded-2xl shadow-xl flex items-center justify-center ink-pressed z-50">
+<span class="material-symbols-outlined text-[32px]" data-icon="add">add</span>
+</button>
+<!-- BottomNavBar Shell -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-safe bg-[#FAF3E8] dark:bg-[#1A161F] border-t border-purple-900/10 dark:border-purple-300/10 shadow-[0_-4px_20px_-5px_rgba(45,27,78,0.12)] rounded-t-2xl">
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 transition-transform duration-150 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 transition-transform duration-150 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Notes</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 transition-transform duration-150 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Vault</span>
+</div>
+<div class="flex flex-col items-center justify-center text-purple-900/50 dark:text-purple-300/40 hover:text-purple-900 dark:hover:text-purple-100 transition-transform duration-150 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Tasks</span>
+</div>
+<div class="flex flex-col items-center justify-center text-amber-700 dark:text-amber-500 bg-amber-500/10 rounded-xl px-3 py-1 transition-transform duration-150 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="calendar_today" data-weight="fill">calendar_today</span>
+<span class="font-sans text-[11px] font-medium tracking-wide uppercase mt-1">Schedule</span>
+</div>
+</nav>
+</body></html>
