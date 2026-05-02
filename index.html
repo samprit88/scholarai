@@ -127,12 +127,25 @@
 
 <!-- --- FILE UPLOAD MODAL --- -->
 <div id="file-modal-overlay" class="modal-overlay">
-  <div class="modal">
-    <div class="modal-header"><h2>Upload File</h2><button class="modal-close" onclick="closeFileModal()"><span class="material-symbols-outlined">close</span></button></div>
-    <div class="form-group"><label>Subject Folder</label><select id="file-subject" class="select"></select></div>
-    <div class="form-group"><label>File (Max 10MB)</label><input type="file" id="file-input" class="input" accept="*/*"></div>
+  <div class="modal file-upload-sheet">
+    <div class="modal-header file-upload-header"><h2>Upload File</h2><button class="modal-close" onclick="closeFileModal()" aria-label="Close upload options"><span class="material-symbols-outlined">close</span></button></div>
+    <select id="file-subject" class="hidden" aria-hidden="true" tabindex="-1"></select>
+    <input type="file" id="file-input" class="file-input-hidden">
+    <div class="upload-option-grid" aria-label="Upload file type">
+      <button class="upload-option-card" type="button" onclick="chooseUploadType('application/pdf')">
+        <span class="upload-option-icon upload-option-icon-pdf material-symbols-outlined">picture_as_pdf</span>
+        <span class="upload-option-copy"><span class="upload-option-title">PDF Document</span><span class="upload-option-desc">Upload lecture notes past papers textbooks</span></span>
+      </button>
+      <button class="upload-option-card" type="button" onclick="chooseUploadType('image/*')">
+        <span class="upload-option-icon upload-option-icon-image material-symbols-outlined">image</span>
+        <span class="upload-option-copy"><span class="upload-option-title">Image or Photo</span><span class="upload-option-desc">Upload diagrams handwritten notes screenshots</span></span>
+      </button>
+      <button class="upload-option-card" type="button" onclick="chooseUploadType('.doc,.docx,.ppt,.pptx,.txt')">
+        <span class="upload-option-icon upload-option-icon-doc material-symbols-outlined">description</span>
+        <span class="upload-option-copy"><span class="upload-option-title">Document</span><span class="upload-option-desc">Upload Word files presentations text files</span></span>
+      </button>
+    </div>
     <div class="progress-bar mb-sm hidden" id="upload-progress-bar"><div id="upload-progress" class="progress-fill" style="width:0%"></div></div>
-    <button class="btn btn-primary" style="width:100%" onclick="uploadFile()">Upload</button>
   </div>
 </div>
 

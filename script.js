@@ -991,6 +991,7 @@ function updateStorageDisplay(sizeBytes) {
 }
 
 document.getElementById('files-search')?.addEventListener('input', renderFiles);
+document.getElementById('file-input')?.addEventListener('change', uploadFile);
 
 function openFileModal(subId) {
   const subjects = ScholarDB.getAll('subjects');
@@ -1001,6 +1002,13 @@ function openFileModal(subId) {
   document.getElementById('file-modal-overlay').classList.add('active');
 }
 function closeFileModal() { document.getElementById('file-modal-overlay').classList.remove('active'); }
+
+function chooseUploadType(accept) {
+  const fileInput = document.getElementById('file-input');
+  fileInput.accept = accept;
+  fileInput.value = '';
+  fileInput.click();
+}
 
 function uploadFile() {
   const fileInput = document.getElementById('file-input');

@@ -93,6 +93,23 @@ h1,h2,h3,h4,.heading{font-family:var(--font-heading)}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .modal-header h2{font-family:var(--font-heading);font-size:22px;font-weight:700}
 .modal-close{width:32px;height:32px;border-radius:50%;border:none;background:var(--color-bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--color-muted)}
+.file-upload-sheet{background:#FAF3E8;padding:26px 20px 24px;animation:fileSheetUp .34s ease}
+.file-upload-header{margin-bottom:18px}
+.file-upload-header h2{color:var(--color-dark);font-size:26px}
+.file-input-hidden{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0 0 0 0);clip-path:inset(50%)}
+.upload-option-grid{display:grid;gap:12px;margin-bottom:16px}
+.upload-option-card{width:100%;min-height:94px;display:flex;align-items:center;gap:14px;text-align:left;padding:16px;border:1px solid rgba(45,27,78,0.09);border-left:5px solid var(--color-accent);border-radius:8px;background:#EDE3D4;color:var(--color-text);box-shadow:0 8px 18px -16px rgba(45,27,78,0.55);cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,background .16s ease}
+.upload-option-card:hover{box-shadow:0 12px 24px -18px rgba(45,27,78,0.7);background:#f0e7da}
+.upload-option-card:active{transform:scale(.975) translateY(2px);box-shadow:0 4px 12px -12px rgba(45,27,78,0.7)}
+.upload-option-card:focus-visible{outline:3px solid rgba(123,63,160,0.22);outline-offset:2px}
+.upload-option-icon{width:46px;height:46px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#FAF3E8;font-size:28px}
+.upload-option-icon-pdf{color:#C0392B}
+.upload-option-icon-image{color:#C4853A}
+.upload-option-icon-doc{color:#7B3FA0}
+.upload-option-copy{display:flex;flex-direction:column;gap:5px;min-width:0}
+.upload-option-title{font-family:var(--font-heading);font-size:19px;font-weight:700;line-height:1.1;color:var(--color-dark)}
+.upload-option-desc{font-size:12px;line-height:1.45;color:#9B8AAA}
+@keyframes fileSheetUp{from{transform:translateY(24px)}to{transform:translateY(0)}}
 /* -- TOAST -- */
 .toast-container{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:90%;max-width:400px}
 .toast{background:var(--color-bg);border-left:4px solid var(--color-accent);border-radius:var(--radius-sm);padding:12px 16px;box-shadow:var(--shadow-lg);animation:toastIn .3s ease;pointer-events:auto;display:flex;align-items:center;gap:10px}
