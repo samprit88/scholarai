@@ -1508,14 +1508,92 @@ document.addEventListener('click', e => {
 function setupPWA() {
   if ('serviceWorker' in navigator) {
     let refreshing = false;
+    let waitingServiceWorker = null;
+
+    const ensureUpdateBannerStyles = () => {
+      if (document.getElementById('sw-update-banner-styles')) return;
+      const style = document.createElement('style');
+      style.id = 'sw-update-banner-styles';
+      style.textContent = `
+        :root{--sw-update-banner-height:0px}
+        body.sw-update-visible{--sw-update-banner-height:58px}
+        .sw-update-banner{position:fixed;top:0;left:0;right:0;z-index:500;min-height:58px;padding:10px 14px;background:#C4853A;color:#2D1B4E;font-family:var(--font-body,'Plus Jakarta Sans',sans-serif);box-shadow:0 8px 24px rgba(45,27,78,.18);transform:translateY(-100%);transition:transform .32s ease;display:flex;align-items:center;justify-content:center}
+        .sw-update-banner.active{transform:translateY(0)}
+        .sw-update-inner{width:100%;max-width:600px;display:flex;align-items:center;gap:12px}
+        .sw-update-message{flex:1;font-size:14px;font-weight:700;line-height:1.35}
+        .sw-update-refresh{flex-shrink:0;border:0;border-radius:10px;background:#fff;color:#2D1B4E;font-family:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(45,27,78,.12)}
+        .sw-update-dismiss{flex-shrink:0;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#2D1B4E;font-family:inherit;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        body.sw-update-visible .top-bar{top:var(--sw-update-banner-height)}
+        body.sw-update-visible .main-content{padding-top:calc(76px + var(--sw-update-banner-height))}
+        @media(max-width:430px){
+          body.sw-update-visible{--sw-update-banner-height:76px}
+          .sw-update-banner{min-height:76px;padding:10px 12px}
+          .sw-update-inner{gap:8px}
+          .sw-update-message{font-size:13px}
+          .sw-update-refresh{padding:8px 12px}
+          .sw-update-dismiss{width:32px;height:32px;font-size:22px}
+          body.sw-update-visible .main-content{padding-top:calc(70px + var(--sw-update-banner-height))}
+        }
+      `;
+      document.head.appendChild(style);
+    };
+
+    const showUpdateBanner = (serviceWorker) => {
+      if (!serviceWorker || document.getElementById('sw-update-banner')) return;
+      waitingServiceWorker = serviceWorker;
+      ensureUpdateBannerStyles();
+
+      const banner = document.createElement('div');
+      banner.id = 'sw-update-banner';
+      banner.className = 'sw-update-banner';
+      banner.setAttribute('role', 'status');
+      banner.setAttribute('aria-live', 'polite');
+      banner.innerHTML = '<div class="sw-update-inner"><span class="sw-update-message">New update available! Tap to refresh</span><button class="sw-update-refresh" type="button">Refresh</button><button class="sw-update-dismiss" type="button" aria-label="Dismiss update notification">&times;</button></div>';
+      document.body.prepend(banner);
+
+      requestAnimationFrame(() => {
+        document.body.classList.add('sw-update-visible');
+        banner.classList.add('active');
+      });
+
+      banner.querySelector('.sw-update-refresh')?.addEventListener('click', () => {
+        if (!waitingServiceWorker) return;
+        waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+      });
+
+      banner.querySelector('.sw-update-dismiss')?.addEventListener('click', () => {
+        banner.classList.remove('active');
+        document.body.classList.remove('sw-update-visible');
+        setTimeout(() => banner.remove(), 320);
+      });
+    };
+
+    const watchRegistrationForUpdates = (registration) => {
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        showUpdateBanner(registration.waiting);
+      }
+
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
+
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner(newWorker);
+          }
+        });
+      });
+    };
+
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (refreshing) return;
       refreshing = true;
       window.location.reload();
     });
-    navigator.serviceWorker.register('service-worker.js?v=3')
+    navigator.serviceWorker.register('service-worker.js?v=4')
       .then(r => {
         console.log('SW Registered', r.scope);
+        watchRegistrationForUpdates(r);
         r.update();
       })
       .catch(e => console.error('SW Error', e));

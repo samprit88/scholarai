@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scholarai-v4';
+const CACHE_NAME = 'scholarai-v5';
 const APP_ASSETS = [
   './',
   'index.html',
@@ -12,7 +12,6 @@ const APP_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_ASSETS)));
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -22,6 +21,12 @@ self.addEventListener('activate', (event) => {
     ))
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
