@@ -7,6 +7,7 @@
 // GLOBALS & INIT
 // ══════════════════════════════════════════════════════════
 let currentPage = 'home';
+let previousPage = 'home';
 let calMonth, calYear;
 let currentNoteFilter = 'all';
 let currentTaskFilter = 'all';
@@ -68,7 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
   Notifications.updateBadge();
   setupPWA();
   setupAriaInput();
+  setupKeepAlivePing();
   startStudyGroupPolling();
+  renderNavProfileIcon();
 
   // Check for shared note
   const params = new URLSearchParams(window.location.search);
@@ -83,11 +86,19 @@ document.addEventListener('DOMContentLoaded', () => {
 // ══════════════════════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════════════════════
+function setupKeepAlivePing() {
+  const ping = () => fetch('https://scholarai-api.onrender.com/health', { method: 'GET', cache: 'no-store' }).catch(() => {});
+  ping();
+  setInterval(ping, 4 * 60 * 1000);
+}
+
 function navigateTo(page) {
+  if (page !== currentPage) previousPage = currentPage;
   currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const el = document.getElementById('page-' + page);
   if (el) el.classList.add('active');
+  document.body.classList.toggle('profile-active', page === 'profile');
 
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.page === page);
@@ -108,7 +119,9 @@ function renderCurrentPage() {
     case 'calendar': renderCalendar(); renderTimetable(); renderStudyGroup(); break;
     case 'aria': renderAriaChips(); break;
     case 'settings': renderSettings(); break;
+    case 'profile': renderProfile(); break;
   }
+  renderNavProfileIcon();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -175,6 +188,7 @@ function normalizeSyncedGroup(group) {
     members: Array.isArray(group.members) ? group.members : [],
     sharedNotes: Array.isArray(group.sharedNotes) ? group.sharedNotes : [],
     sharedFiles: Array.isArray(group.sharedFiles) ? group.sharedFiles : [],
+    messages: Array.isArray(group.messages) ? group.messages : [],
     lastSynced: Date.now()
   };
 }
@@ -184,6 +198,140 @@ function saveSyncedGroup(group) {
   ScholarDB.setStudyGroup(synced);
   lastStudyGroupSyncError = '';
   return synced;
+}
+
+function getInitials(name) {
+  const parts = String(name || 'Scholar').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'S';
+  return parts.slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('');
+}
+
+function ensureProfileJoinedAt(settings) {
+  if (settings.profileJoinedAt) return settings.profileJoinedAt;
+  settings.profileJoinedAt = Date.now();
+  ScholarDB.updateSettings(settings);
+  return settings.profileJoinedAt;
+}
+
+function renderAvatarHtml(settings, sizeClass) {
+  if (settings.avatarPhoto) {
+    return '<img class="' + sizeClass + '-img" src="' + escapeHtml(settings.avatarPhoto) + '" alt="Profile photo">';
+  }
+  return '<span style="color:' + escapeHtml(settings.avatarColor || '#7B3FA0') + '">' + escapeHtml(getInitials(settings.name)) + '</span>';
+}
+
+function renderNavProfileIcon() {
+  const btn = document.getElementById('nav-profile-btn');
+  if (!btn) return;
+  const settings = ScholarDB.getSettings();
+  btn.innerHTML = renderAvatarHtml(settings, 'nav-profile');
+}
+
+function openProfilePage() {
+  previousPage = currentPage === 'profile' ? previousPage : currentPage;
+  navigateTo('profile');
+}
+
+function goBackFromProfile() {
+  navigateTo(previousPage && previousPage !== 'profile' ? previousPage : 'home');
+}
+
+function renderProfile() {
+  const settings = ScholarDB.getSettings();
+  const subjects = ScholarDB.getAll('subjects');
+  ensureProfileJoinedAt(settings);
+
+  const avatar = document.getElementById('profile-large-avatar');
+  if (avatar) avatar.innerHTML = renderAvatarHtml(settings, 'profile-large-avatar');
+
+  const editMode = document.getElementById('profile-edit-btn')?.dataset.editing === 'true';
+  const display = document.getElementById('profile-display-area');
+  if (display) {
+    display.innerHTML = editMode
+      ? '<div class="profile-edit-fields"><input id="profile-name-input" class="input profile-inline-input" value="' + escapeHtml(settings.name || '') + '" placeholder="Your name"><select id="profile-class-input" class="select profile-inline-input"><option>Class 9</option><option>Class 10</option><option>Class 11</option><option>Class 12</option><option>Undergraduate</option></select></div>'
+      : '<h1 class="profile-name">' + escapeHtml(settings.name || 'Scholar') + '</h1><div class="profile-class-badge">' + escapeHtml(settings.class || 'Class 11') + '</div>';
+    if (editMode && settings.class) document.getElementById('profile-class-input').value = settings.class;
+  }
+
+  const editBtn = document.getElementById('profile-edit-btn');
+  if (editBtn) editBtn.textContent = editMode ? 'Save Profile' : 'Edit Profile';
+
+  const list = document.getElementById('profile-subjects-list');
+  if (list) {
+    list.innerHTML = subjects.length ? subjects.map(sub =>
+      '<div class="profile-subject-card" style="border-left-color:' + escapeHtml(sub.color || '#7B3FA0') + '">' +
+      '<strong>' + escapeHtml(sub.name || 'Subject') + '</strong>' +
+      (sub.teacher ? '<span>' + escapeHtml(sub.teacher) + '</span>' : '') +
+      '</div>'
+    ).join('') : '<div class="empty-state" style="padding:24px 12px"><p>No subjects added yet.</p></div>';
+  }
+
+  const joined = document.getElementById('profile-join-date');
+  if (joined) joined.textContent = 'Member since ' + new Date(settings.profileJoinedAt).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function toggleProfileEdit() {
+  const btn = document.getElementById('profile-edit-btn');
+  if (!btn) return;
+  const isEditing = btn.dataset.editing === 'true';
+  if (isEditing) {
+    const name = document.getElementById('profile-name-input')?.value.trim();
+    const cls = document.getElementById('profile-class-input')?.value;
+    const settings = ScholarDB.getSettings();
+    if (name) settings.name = name;
+    if (cls) settings.class = cls;
+    ScholarDB.updateSettings(settings);
+    btn.dataset.editing = 'false';
+    showToast('Profile updated', 'success');
+  } else {
+    btn.dataset.editing = 'true';
+  }
+  renderProfile();
+  renderNavProfileIcon();
+}
+
+function openProfilePhotoSheet() {
+  document.getElementById('profile-photo-sheet')?.classList.add('active');
+}
+
+function closeProfilePhotoSheet() {
+  document.getElementById('profile-photo-sheet')?.classList.remove('active');
+  document.getElementById('avatar-choice-panel')?.classList.add('hidden');
+}
+
+function handleProfilePhotoUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const settings = ScholarDB.getSettings();
+    settings.avatarPhoto = e.target.result;
+    ScholarDB.updateSettings(settings);
+    renderProfile();
+    renderNavProfileIcon();
+    closeProfilePhotoSheet();
+    showToast('Photo updated', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function showAvatarChoices() {
+  const panel = document.getElementById('avatar-choice-panel');
+  if (!panel) return;
+  const colors = ['#7B3FA0', '#C4853A', '#4A7C59', '#C0392B', '#D4838A', '#5B7BA0'];
+  panel.innerHTML = colors.map(color => '<button class="avatar-choice" style="background:' + color + '" onclick="chooseProfileAvatar(\'' + color + '\')" aria-label="Choose avatar color"></button>').join('');
+  panel.classList.remove('hidden');
+}
+
+function chooseProfileAvatar(color) {
+  const settings = ScholarDB.getSettings();
+  settings.avatarColor = color;
+  settings.avatarPhoto = '';
+  ScholarDB.updateSettings(settings);
+  renderProfile();
+  renderNavProfileIcon();
+  closeProfilePhotoSheet();
+  showToast('Avatar updated', 'success');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -891,6 +1039,7 @@ function renderStudyGroup() {
   const members = group.members || [];
   const sharedNotes = group.sharedNotes || [];
   const sharedFiles = group.sharedFiles || [];
+  const messages = group.messages || [];
   const syncText = group.lastSynced ? 'Synced ' + new Date(group.lastSynced).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sync pending';
   const syncStatus = lastStudyGroupSyncError ? '<p class="text-xs mt-sm" style="color:var(--color-danger)">Sync issue: ' + escapeHtml(lastStudyGroupSyncError) + '</p>' : '<p class="text-xs text-muted mt-sm">' + syncText + '</p>';
   
@@ -899,10 +1048,67 @@ function renderStudyGroup() {
     '<div class="flex-row gap-sm mt-lg" style="justify-content:center"><button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText(\'' + group.code + '\');showToast(\'Code copied!\',\'success\')"><span class="material-symbols-outlined" style="font-size:16px">content_copy</span> Copy</button>' +
     '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn btn-sm btn-outline" style="border-color:#25D366;color:#25D366"><span class="material-symbols-outlined" style="font-size:16px">chat</span> WhatsApp</a></div></div>' +
     syncStatus +
-    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="flex-row flex-wrap gap-sm">' + (members.length ? members.map(m => '<div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.name || 'Scholar') + '">' + escapeHtml((m.name || 'S').charAt(0).toUpperCase()) + '</div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
+    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.name || 'Scholar') + '">' + escapeHtml(getInitials(m.name || 'Scholar')) + '</div><span>' + escapeHtml(m.name || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
+    '<h3 class="section-title mt-lg mb-sm">Group Chat</h3><div class="group-chat-panel"><div id="group-chat-messages" class="group-chat-messages">' + renderGroupMessages(messages) + '</div><div class="group-chat-input-row"><textarea id="group-chat-input" class="group-chat-input" placeholder="Type a message..." rows="2"></textarea><button class="btn btn-primary btn-pill group-chat-send" onclick="sendGroupMessage()">Send</button></div></div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Notes</h3><div class="space-y">' + renderSharedNotes(sharedNotes) + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Files</h3><div class="space-y">' + renderSharedFiles(sharedFiles) + '</div>' +
     '<button class="btn btn-danger btn-sm mt-lg" style="width:100%" onclick="leaveStudyGroup()">Leave Group</button>';
+  requestAnimationFrame(() => scrollGroupChatToBottom());
+}
+
+function renderGroupMessages(messages) {
+  if (!messages.length) return '<div class="group-chat-empty">No messages yet — say hello!</div>';
+  const localId = getDeviceId();
+  return messages.map(message => {
+    const mine = message.senderId === localId;
+    const time = new Date(message.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return '<div class="group-message ' + (mine ? 'mine' : 'theirs') + '">' +
+      (!mine ? '<span class="group-message-sender">' + escapeHtml(message.senderName || 'Scholar') + '</span>' : '') +
+      '<div class="group-message-bubble"><p>' + escapeHtml(message.text || '') + '</p><time>' + escapeHtml(time) + '</time></div>' +
+      '</div>';
+  }).join('');
+}
+
+function renderGroupChatMessages() {
+  const area = document.getElementById('group-chat-messages');
+  const group = ScholarDB.getStudyGroup();
+  if (!area || !group) return;
+  const nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+  area.innerHTML = renderGroupMessages(group.messages || []);
+  if (nearBottom) scrollGroupChatToBottom();
+}
+
+function scrollGroupChatToBottom() {
+  const area = document.getElementById('group-chat-messages');
+  if (area) area.scrollTop = area.scrollHeight;
+}
+
+async function sendGroupMessage() {
+  const group = ScholarDB.getStudyGroup();
+  const input = document.getElementById('group-chat-input');
+  const text = input?.value.trim();
+  if (!group?.code || !text) return;
+  const member = getLocalMember();
+  input.value = '';
+  showToast('Sending message...', 'info');
+  try {
+    const synced = await studyGroupRequest('/api/study-groups/' + encodeURIComponent(group.code) + '/messages', {
+      method: 'POST',
+      body: JSON.stringify({
+        senderId: member.deviceId,
+        senderName: member.name,
+        text,
+        timestamp: Date.now()
+      })
+    });
+    saveSyncedGroup(synced);
+    renderGroupChatMessages();
+    scrollGroupChatToBottom();
+  } catch (error) {
+    lastStudyGroupSyncError = error.message;
+    if (input) input.value = text;
+    showToast(error.message, 'error');
+  }
 }
 
 function renderSharedNotes(notes) {
@@ -968,7 +1174,10 @@ async function refreshStudyGroup(silent = true) {
   try {
     const synced = await studyGroupRequest('/api/study-groups/' + encodeURIComponent(group.code));
     saveSyncedGroup(synced);
-    if (currentPage === 'calendar' && !document.getElementById('calview-studygroup').classList.contains('hidden')) renderStudyGroup();
+    if (currentPage === 'calendar' && !document.getElementById('calview-studygroup').classList.contains('hidden')) {
+      if (document.activeElement?.id === 'group-chat-input') renderGroupChatMessages();
+      else renderStudyGroup();
+    }
   } catch (error) {
     lastStudyGroupSyncError = error.message;
     if (!silent) showToast(error.message, 'error');
@@ -979,7 +1188,7 @@ async function refreshStudyGroup(silent = true) {
 function startStudyGroupPolling() {
   refreshStudyGroup();
   if (studyGroupPollTimer) clearInterval(studyGroupPollTimer);
-  studyGroupPollTimer = setInterval(() => refreshStudyGroup(), 30000);
+  studyGroupPollTimer = setInterval(() => refreshStudyGroup(), 5000);
 }
 
 function downloadSharedFile(id) {
@@ -1304,15 +1513,9 @@ function deleteFile(id) {
 // ══════════════════════════════════════════════════════════
 function renderSettings() {
   const s = ScholarDB.getSettings();
-  document.getElementById('set-name').value = s.name || '';
-  if (s.class) document.getElementById('set-class').value = s.class;
   if (s.ariaPersonality) document.getElementById('set-personality').value = s.ariaPersonality;
   
   const colors = ['#7B3FA0', '#C4853A', '#4A7C59', '#C0392B', '#D4838A', '#5B7BA0'];
-  document.getElementById('set-avatar-colors').innerHTML = colors.map(c => 
-    '<div class="color-swatch ' + ((s.avatarColor||'#7B3FA0') === c ? 'selected' : '') + '" style="background:' + c + '" onclick="updateSettings(\'avatarColor\', \'' + c + '\');renderSettings()"></div>'
-  ).join('');
-  
   document.getElementById('set-subject-color').innerHTML = colors.map(c => 
     '<div class="color-swatch ' + (c === '#7B3FA0' ? 'selected' : '') + '" data-color="' + c + '" style="background:' + c + '"></div>'
   ).join('');
@@ -1334,10 +1537,10 @@ function renderSettings() {
   let totalBytes = 0;
   for (let key in localStorage) { if (localStorage.hasOwnProperty(key)) { totalBytes += ((localStorage[key].length + key.length) * 2); } }
   document.getElementById('storage-display').textContent = 'Local Storage Used: ' + (totalBytes / 1024).toFixed(2) + ' KB';
+  const sharePreview = document.getElementById('share-message-preview');
+  if (sharePreview) sharePreview.textContent = getScholarAIShareMessage();
   
   // Add listeners for auto-save
-  document.getElementById('set-name').onchange = (e) => updateSettings('name', e.target.value);
-  document.getElementById('set-class').onchange = (e) => updateSettings('class', e.target.value);
   document.getElementById('set-personality').onchange = (e) => updateSettings('ariaPersonality', e.target.value);
 }
 
@@ -1345,7 +1548,32 @@ function updateSettings(key, val) {
   const s = ScholarDB.getSettings();
   s[key] = val;
   ScholarDB.updateSettings(s);
+  renderNavProfileIcon();
   if (key !== 'ariaPersonality') showToast('Settings updated', 'success');
+}
+
+function getScholarAIAppUrl() {
+  return window.location.origin + window.location.pathname;
+}
+
+function getScholarAIShareMessage() {
+  return "Hey! I've been using ScholarAI — a free AI-powered student productivity app. It has smart notes with AI summaries, assignment tracker, timetable, file vault, and an AI study companion called ARIA. Try it free here: " + getScholarAIAppUrl() + " ";
+}
+
+function shareScholarAIWhatsApp() {
+  window.open('https://wa.me/?text=' + encodeURIComponent(getScholarAIShareMessage()), '_blank', 'noopener');
+}
+
+function copyScholarAILink() {
+  navigator.clipboard.writeText(getScholarAIAppUrl()).then(() => showToast('Link copied', 'success')).catch(() => showToast('Could not copy link', 'error'));
+}
+
+function shareScholarAIMore() {
+  if (!navigator.share) {
+    showToast('Native sharing is not available here', 'error');
+    return;
+  }
+  navigator.share({ text: getScholarAIShareMessage(), url: getScholarAIAppUrl(), title: 'ScholarAI' }).catch(() => {});
 }
 
 function toggleSetting(el, key) {

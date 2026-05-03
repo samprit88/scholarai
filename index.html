@@ -57,7 +57,7 @@
 
 <!-- TOP BAR -->
 <header class="top-bar">
-  <div class="flex-row"><span class="logo">ScholarAI</span></div>
+  <div class="brand-row"><span class="logo">ScholarAI</span><button id="nav-profile-btn" class="nav-profile-btn" onclick="openProfilePage()" aria-label="Open profile"></button></div>
   <div class="actions">
     <button class="icon-btn" style="position:relative" onclick="toggleNotifPanel()">
       <span class="material-symbols-outlined">notifications</span>
@@ -147,6 +147,26 @@
     </div>
     <div class="progress-bar mb-sm hidden" id="upload-progress-bar"><div id="upload-progress" class="progress-fill" style="width:0%"></div></div>
   </div>
+</div>
+
+<!-- --- PROFILE PAGE --- -->
+<div id="page-profile" class="page profile-page">
+  <button class="profile-back-btn" onclick="goBackFromProfile()" aria-label="Go back"><span class="material-symbols-outlined">arrow_back</span></button>
+  <section class="profile-hero">
+    <div class="profile-avatar-wrap">
+      <div id="profile-large-avatar" class="profile-large-avatar"></div>
+      <button class="profile-camera-btn" onclick="openProfilePhotoSheet()" aria-label="Edit profile photo"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">photo_camera</span></button>
+    </div>
+    <div id="profile-display-area"></div>
+  </section>
+  <div class="profile-divider"></div>
+  <button id="profile-edit-btn" class="btn btn-outline btn-pill profile-edit-btn" onclick="toggleProfileEdit()">Edit Profile</button>
+  <div class="profile-divider"></div>
+  <section>
+    <h2 class="profile-section-title">My Subjects</h2>
+    <div id="profile-subjects-list" class="profile-subjects-list"></div>
+  </section>
+  <p id="profile-join-date" class="profile-join-date"></p>
 </div>
 
 <!-- --- TASKS PAGE --- -->
@@ -256,13 +276,6 @@
   <h1 class="heading" style="font-size:24px;margin-bottom:20px">Settings</h1>
 
   <div class="settings-section">
-    <h3>Profile</h3>
-    <div class="form-group"><label>Name</label><input id="set-name" class="input" placeholder="Your name"></div>
-    <div class="form-group"><label>Class</label><select id="set-class" class="select"><option>Class 9</option><option>Class 10</option><option>Class 11</option><option>Class 12</option><option>Undergraduate</option></select></div>
-    <div class="form-group"><label>Avatar Color</label><div class="color-picker-row" id="set-avatar-colors"></div></div>
-  </div>
-
-  <div class="settings-section">
     <h3>Subjects</h3>
     <div id="set-subjects-list" class="space-y mb-sm"></div>
     <div class="flex-row gap-sm"><input id="set-new-subject" class="input" placeholder="New subject" style="flex:1"><div class="color-picker-row" id="set-subject-color" style="flex-shrink:0"></div><button class="btn btn-sm btn-secondary" onclick="addSubjectFromSettings()">Add</button></div>
@@ -290,6 +303,19 @@
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     <button class="btn btn-danger btn-sm mt-md" style="width:100%" onclick="clearAllData()">Clear All Data</button>
     <p id="storage-display" class="text-xs text-muted mt-sm text-center"></p>
+  </div>
+
+  <div class="settings-section">
+    <h3>Share ScholarAI</h3>
+    <div class="share-card">
+      <div class="flex-row gap-sm mb-sm"><span class="material-symbols-outlined text-gold">share</span><h4 class="share-title">Share ScholarAI</h4></div>
+      <p id="share-message-preview" class="share-preview"></p>
+      <div class="share-actions">
+        <button class="btn btn-pill btn-sm share-whatsapp" onclick="shareScholarAIWhatsApp()">WhatsApp</button>
+        <button class="btn btn-pill btn-sm share-copy" onclick="copyScholarAILink()">Copy Link</button>
+        <button class="btn btn-pill btn-sm share-more" onclick="shareScholarAIMore()">More</button>
+      </div>
+    </div>
   </div>
 
   <div class="text-center mt-lg" style="padding-bottom:20px">
@@ -322,6 +348,17 @@
     <h2 class="heading" style="font-size:18px;margin-bottom:8px" id="confirm-title">Confirm</h2>
     <p id="confirm-msg" class="text-sm text-muted" style="margin-bottom:16px"></p>
     <div class="flex-row gap-sm" style="justify-content:flex-end"><button class="btn btn-sm btn-outline" onclick="closeConfirm()">Cancel</button><button class="btn btn-sm btn-danger" id="confirm-btn" onclick="">Confirm</button></div>
+  </div>
+</div>
+
+<!-- PROFILE PHOTO SHEET -->
+<div id="profile-photo-sheet" class="modal-overlay">
+  <div class="modal profile-photo-modal">
+    <div class="modal-header"><h2>Edit Avatar</h2><button class="modal-close" onclick="closeProfilePhotoSheet()"><span class="material-symbols-outlined">close</span></button></div>
+    <input type="file" id="profile-photo-input" accept="image/*" class="file-input-hidden" onchange="handleProfilePhotoUpload(event)">
+    <button class="profile-sheet-option" onclick="document.getElementById('profile-photo-input').click()"><span class="material-symbols-outlined">add_a_photo</span><span>Upload Photo</span></button>
+    <button class="profile-sheet-option" onclick="showAvatarChoices()"><span class="material-symbols-outlined">palette</span><span>Choose Avatar</span></button>
+    <div id="avatar-choice-panel" class="avatar-choice-panel hidden"></div>
   </div>
 </div>
 

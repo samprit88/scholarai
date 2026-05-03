@@ -58,6 +58,8 @@ const ScholarDB = (() => {
             groqKey: '',
             ariaPersonality: 'warm',
             avatarColor: '#7B3FA0',
+            avatarPhoto: '',
+            profileJoinedAt: Date.now(),
             notifications: {
                 classReminders: true,
                 assignmentReminders: true,

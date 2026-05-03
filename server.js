@@ -123,6 +123,7 @@ function normalizeGroup(record) {
     members: Array.isArray(record?.members) ? record.members : [],
     sharedNotes: Array.isArray(record?.sharedNotes) ? record.sharedNotes : [],
     sharedFiles: Array.isArray(record?.sharedFiles) ? record.sharedFiles : [],
+    messages: Array.isArray(record?.messages) ? record.messages : [],
   };
 }
 
@@ -168,7 +169,7 @@ app.post('/api/study-groups', async (req, res) => {
     }
     if (!code || index.groups[code]) return res.status(409).json({ error: 'Could not generate a unique group code' });
 
-    const group = normalizeGroup({ code, members: [member], sharedNotes: [], sharedFiles: [] });
+    const group = normalizeGroup({ code, members: [member], sharedNotes: [], sharedFiles: [], messages: [] });
     const binId = await createBin(group, `ScholarAI-${code}`);
     index.groups[code] = binId;
     await updateBin(process.env.JSONBIN_INDEX_BIN_ID, index);
@@ -248,6 +249,31 @@ app.post('/api/study-groups/:code/shared-files', async (req, res) => {
     };
     if (!file.base64) return res.status(400).json({ error: 'Missing file data' });
     if (!group.sharedFiles.some(f => f.id === file.id)) group.sharedFiles.unshift(file);
+    await updateBin(binId, group);
+    res.json({ ...group, binId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/study-groups/:code/messages', async (req, res) => {
+  if (!requireJsonbinConfig(res)) return;
+  try {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    const { binId } = await getGroupBinId(code);
+    if (!binId) return res.status(404).json({ error: 'Group code not found' });
+    const group = normalizeGroup(await readBin(binId));
+    const message = {
+      id: String(req.body?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+      senderId: String(req.body?.senderId || '').slice(0, 120),
+      senderName: String(req.body?.senderName || 'Scholar').slice(0, 80),
+      text: String(req.body?.text || '').trim().slice(0, 2000),
+      timestamp: Number(req.body?.timestamp || Date.now()),
+    };
+    if (!message.senderId) return res.status(400).json({ error: 'Missing sender ID' });
+    if (!message.text) return res.status(400).json({ error: 'Missing message text' });
+    group.messages.push(message);
+    if (group.messages.length > 300) group.messages = group.messages.slice(-300);
     await updateBin(binId, group);
     res.json({ ...group, binId });
   } catch (error) {
