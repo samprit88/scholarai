@@ -15,6 +15,7 @@ let obSubjects = [];
 let deferredPrompt = null;
 let studyGroupPollTimer = null;
 let lastStudyGroupSyncError = '';
+const STUDY_GROUP_API_BASE = ['localhost', '127.0.0.1'].includes(window.location.hostname) ? '' : 'https://scholarai-api.onrender.com';
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -154,7 +155,7 @@ function getLocalMember() {
 }
 
 async function studyGroupRequest(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(STUDY_GROUP_API_BASE + path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1506,8 +1507,17 @@ document.addEventListener('click', e => {
 // ══════════════════════════════════════════════════════════
 function setupPWA() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js')
-      .then(r => console.log('SW Registered', r.scope))
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+    navigator.serviceWorker.register('service-worker.js?v=3')
+      .then(r => {
+        console.log('SW Registered', r.scope);
+        r.update();
+      })
       .catch(e => console.error('SW Error', e));
   }
   

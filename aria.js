@@ -3,7 +3,7 @@
  * Handles all AI proxy interactions and ARIA chat logic
  */
 const ARIA = (() => {
-    const API_URL = 'https://scholarai-api.onrender.com/api/chat';
+    const API_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname) ? '/api/chat' : 'https://scholarai-api.onrender.com/api/chat';
     const MODEL = 'llama-3.3-70b-versatile';
     let conversationHistory = [];
 
