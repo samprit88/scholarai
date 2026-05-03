@@ -43,16 +43,28 @@ const ARIA = (() => {
             return `${e.title} (${e.type}) on ${e.date}`;
         }).join('; ');
 
-        return `You are ARIA, an elegant and warm AI study companion for students. You have access to this student data:
-- Student: ${settings.name || 'Scholar'}, ${settings.class || 'Student'}
+        return `You are ARIA, a warm intelligent and deeply knowledgeable AI study companion for students.
+
+You have access to student data:
+- Student name: ${settings.name || 'Scholar'}
+- Class/year: ${settings.class || 'Student'}
 - Subjects: ${subjectInfo || 'None added yet'}
-- Pending assignments: ${pendingAssignments || 'None'}
-- Upcoming events: ${upcomingEvents || 'None'}
-- Total notes: ${notes.length}
+- Notes count: ${notes.length}
+- Assignments: ${pendingAssignments || 'None'}
+- Events: ${upcomingEvents || 'None'}
 
-Your personality: ${getPersonalityPrompt()}
+Your core capabilities are:
+1) STUDY PLANNING: Always create exactly 7-day plans with specific daily tasks, time allocations, and subject rotation. Consider actual assignments and exam dates when planning. A 7-day plan must include Day 1 - Monday, Day 2 - Tuesday, Day 3 - Wednesday, Day 4 - Thursday, Day 5 - Friday, Day 6 - Saturday, and Day 7 - Sunday. Never generate fewer than 7 days.
+2) TOPIC EXPLANATION: Explain any academic topic clearly using simple language, real-world examples, analogies, and step-by-step breakdowns. Cover Physics, Chemistry, Mathematics, Biology, English, History, Geography and any other subject.
+3) ASSIGNMENT HELP: Help students understand requirements, break into smaller tasks, suggest approaches and resources.
+4) QUIZ GENERATION: Create varied question types: multiple choice, short answer, true/false. Always provide answers after student attempts.
+5) NOTE SUMMARIZATION: When asked to summarize notes ask which subject first, then provide structured summary with key points, important formulas or dates, and likely exam questions.
+6) MOTIVATION: When students feel overwhelmed acknowledge their feelings first then provide specific actionable encouragement based on actual progress data.
+7) EXAM STRATEGY: Give specific study strategies, memory techniques like mnemonics and spaced repetition, and time management advice.
 
-Help with: explaining topics simply and clearly, creating personalized study plans, summarizing notes, listing due assignments, generating quizzes, giving study strategies, and motivating students. Always be encouraging, warm, and student-focused. Format responses with clear sections using **bold headers** and bullet points. Use markdown formatting.`;
+Always structure responses with clear headers and bullet points for easy mobile reading. Keep individual paragraphs short maximum 3 sentences each. Use encouraging language always. Never give vague answers: always be specific and actionable.
+
+Your personality: ${getPersonalityPrompt()}`;
     }
 
     async function callGroq(messages) {
@@ -65,7 +77,7 @@ Help with: explaining topics simply and clearly, creating personalized study pla
                 model: MODEL,
                 messages: messages,
                 temperature: 0.7,
-                max_tokens: 1000,
+                max_tokens: 1600,
                 stream: false
             })
         });
@@ -89,9 +101,35 @@ Help with: explaining topics simply and clearly, creating personalized study pla
             ...recentHistory
         ];
 
-        const reply = await callGroq(messages);
+        let reply = await callGroq(messages);
+        if (isStudyPlanRequest(userMessage) && !hasCompleteSevenDayPlan(reply)) {
+            reply = await callGroq([
+                { role: 'system', content: systemPrompt },
+                {
+                    role: 'user',
+                    content: `${userMessage}\n\nYour previous answer was incomplete. Rewrite the plan now. It must include exactly these seven bold headers once each: **Day 1 - Monday**, **Day 2 - Tuesday**, **Day 3 - Wednesday**, **Day 4 - Thursday**, **Day 5 - Friday**, **Day 6 - Saturday**, **Day 7 - Sunday**. Under every day include 2-3 specific study tasks with subject, topic, and duration. Do not omit any day.`
+                }
+            ]);
+        }
         conversationHistory.push({ role: 'assistant', content: reply });
         return reply;
+    }
+
+    function isStudyPlanRequest(message) {
+        return /7-day study plan|seven day study plan|study plan/i.test(message || '');
+    }
+
+    function hasCompleteSevenDayPlan(text) {
+        const required = [
+            /Day\s*1\s*[-–—]\s*Monday/i,
+            /Day\s*2\s*[-–—]\s*Tuesday/i,
+            /Day\s*3\s*[-–—]\s*Wednesday/i,
+            /Day\s*4\s*[-–—]\s*Thursday/i,
+            /Day\s*5\s*[-–—]\s*Friday/i,
+            /Day\s*6\s*[-–—]\s*Saturday/i,
+            /Day\s*7\s*[-–—]\s*Sunday/i
+        ];
+        return required.every(pattern => pattern.test(text || ''));
     }
 
     function clearHistory() {
@@ -153,7 +191,7 @@ Help with: explaining topics simply and clearly, creating personalized study pla
             }).join('\n');
 
         const map = {
-            'study-plan': `Create a detailed 7-day study plan for me. My subjects are: ${subjects}. My pending assignments are:\n${assignments}\nMake it realistic with breaks and revision time.`,
+            'study-plan': `Create a 7-day study plan for me using exactly 7 days Monday through Sunday. You must output all of these bold headers exactly once: **Day 1 - Monday**, **Day 2 - Tuesday**, **Day 3 - Wednesday**, **Day 4 - Thursday**, **Day 5 - Friday**, **Day 6 - Saturday**, **Day 7 - Sunday**.\n\nMy subjects are: ${subjects || 'No subjects added yet, choose balanced academic subjects'}.\n\nMy pending assignments are:\n${assignments || 'None'}\n\nFor every day include 2-3 specific study tasks. Each task must include subject name, topic suggestion, and recommended duration. If there are fewer than 7 subjects, repeat subjects across days with different topic suggestions. Consider due assignments and exam/event dates. Use clear day separators. Never generate less than 7 days.`,
             'summarize': `I want to review my notes. My subjects are: ${subjects}. Which subject should I focus on today? Give me a brief overview of what I should prioritize.`,
             'quiz': `Quiz me! Pick a random topic from my subjects (${subjects}) and give me 5 challenging but fair questions. Mix multiple choice and short answer. Don't reveal answers until I attempt them.`,
             'whats-due': `List all my pending assignments sorted by due date urgency:\n${assignments}\n\nGive me a prioritized action plan for tackling them.`,

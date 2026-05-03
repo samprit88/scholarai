@@ -998,7 +998,24 @@ function downloadSharedFile(id) {
 // ══════════════════════════════════════════════════════════
 function setupAriaInput() {
   const input = document.getElementById('aria-input');
-  if (input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendAriaMessage(); });
+  if (!input) return;
+  input.addEventListener('input', autoResizeAriaInput);
+  input.addEventListener('keydown', (e) => {
+    const isDesktop = window.matchMedia('(min-width: 768px) and (pointer: fine)').matches;
+    if (isDesktop && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendAriaMessage();
+    }
+  });
+  autoResizeAriaInput();
+}
+
+function autoResizeAriaInput() {
+  const input = document.getElementById('aria-input');
+  if (!input) return;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  input.style.overflowY = input.scrollHeight > 120 ? 'auto' : 'hidden';
 }
 
 function renderAriaChips() {
@@ -1014,7 +1031,11 @@ function renderAriaChips() {
 
 function triggerAriaAction(type) {
   const prompt = ARIA.getQuickPrompt(type);
-  if (prompt) { document.getElementById('aria-input').value = prompt; sendAriaMessage(); }
+  if (prompt) {
+    document.getElementById('aria-input').value = prompt;
+    autoResizeAriaInput();
+    sendAriaMessage();
+  }
 }
 
 async function sendAriaMessage() {
@@ -1024,6 +1045,7 @@ async function sendAriaMessage() {
 
   appendChatMessage(msg, 'user');
   input.value = '';
+  autoResizeAriaInput();
   document.getElementById('aria-chips').style.display = 'none';
 
   const typingId = appendTypingIndicator();
@@ -1033,14 +1055,14 @@ async function sendAriaMessage() {
   try {
     const response = await ARIA.chat(msg);
     document.getElementById(typingId).remove();
-    appendChatMessage(ARIA.parseMarkdown(response), 'aria');
+    appendChatMessage(ARIA.parseMarkdown(response), 'aria', response);
   } catch (e) {
     document.getElementById(typingId).remove();
-    appendChatMessage('<span style="color:var(--color-danger)">Error: ' + e.message + '</span>', 'aria');
+    appendChatMessage('<span style="color:var(--color-danger)">Error: ' + e.message + '</span>', 'aria', 'Error: ' + e.message);
   }
 }
 
-function appendChatMessage(html, type) {
+function appendChatMessage(html, type, rawText) {
   const area = document.getElementById('chat-area');
   const div = document.createElement('div');
   div.className = 'chat-msg ' + type;
@@ -1048,10 +1070,26 @@ function appendChatMessage(html, type) {
     const s = ScholarDB.getSettings();
     div.innerHTML = '<div class="chat-avatar user-avatar" style="background:' + (s.avatarColor || 'var(--color-gold)') + '">' + (s.name ? s.name.charAt(0) : 'U') + '</div><div class="chat-bubble user">' + html + '</div>';
   } else {
-    div.innerHTML = '<div class="chat-avatar aria-avatar"><span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:\'FILL\' 1">auto_awesome</span></div><div class="chat-bubble aria">' + html + '</div>';
+    const copyId = 'copy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+    div.innerHTML = '<div class="chat-avatar aria-avatar"><span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:\'FILL\' 1">auto_awesome</span></div><div class="chat-content"><div class="chat-bubble aria">' + html + '</div><button id="' + copyId + '" class="chat-copy-btn" onclick="copyAriaMessage(this)"><span class="material-symbols-outlined">content_copy</span><span>Copy</span></button></div>';
+    div.dataset.copyText = rawText || div.textContent || '';
   }
   area.appendChild(div);
   area.scrollTop = area.scrollHeight;
+}
+
+function copyAriaMessage(btn) {
+  const msg = btn.closest('.chat-msg');
+  const text = msg?.dataset.copyText || msg?.querySelector('.chat-bubble')?.innerText || '';
+  navigator.clipboard.writeText(text).then(() => {
+    const old = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<span class="material-symbols-outlined">check</span><span>Copied</span>';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = old;
+    }, 2000);
+  }).catch(() => showToast('Could not copy response', 'error'));
 }
 
 function appendTypingIndicator() {
