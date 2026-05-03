@@ -13,6 +13,8 @@ let currentTaskFilter = 'all';
 let fileDB = null;
 let obSubjects = [];
 let deferredPrompt = null;
+let studyGroupPollTimer = null;
+let lastStudyGroupSyncError = '';
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -65,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
   Notifications.updateBadge();
   setupPWA();
   setupAriaInput();
+  startStudyGroupPolling();
 
   // Check for shared note
   const params = new URLSearchParams(window.location.search);
@@ -119,6 +122,67 @@ function showToast(msg, type = 'info') {
     '</span><span style="flex:1">' + msg + '</span>';
   container.appendChild(toast);
   setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function getDeviceId() {
+  const key = 'scholarai_device_id';
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+function getLocalMember() {
+  const settings = ScholarDB.getSettings();
+  return {
+    deviceId: getDeviceId(),
+    name: settings.name || 'Scholar',
+    avatarColor: settings.avatarColor || '#7B3FA0'
+  };
+}
+
+async function studyGroupRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Study group sync failed');
+  return data;
+}
+
+function normalizeSyncedGroup(group) {
+  if (!group) return null;
+  return {
+    code: String(group.code || '').toUpperCase(),
+    binId: group.binId || '',
+    members: Array.isArray(group.members) ? group.members : [],
+    sharedNotes: Array.isArray(group.sharedNotes) ? group.sharedNotes : [],
+    sharedFiles: Array.isArray(group.sharedFiles) ? group.sharedFiles : [],
+    lastSynced: Date.now()
+  };
+}
+
+function saveSyncedGroup(group) {
+  const synced = normalizeSyncedGroup(group);
+  ScholarDB.setStudyGroup(synced);
+  lastStudyGroupSyncError = '';
+  return synced;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -305,7 +369,10 @@ function renderNotes() {
     return '<div class="card" style="border-left:4px solid ' + (sub?sub.color:'var(--color-accent)') + ';cursor:pointer" onclick="viewNote(\'' + n.id + '\')">' +
       '<div class="flex-between"><h3 class="heading" style="font-size:16px">' + n.title + '</h3><span class="text-xs text-muted">' + date + '</span></div>' +
       '<p class="text-sm text-muted line-clamp-2 mt-sm">' + n.content.substring(0, 150) + '...</p>' +
-      (sub ? '<span class="pill pill-plum mt-sm" style="background:' + sub.color + '20;color:' + sub.color + '">' + sub.name + '</span>' : '') +
+      '<div class="flex-between mt-sm">' +
+      (sub ? '<span class="pill pill-plum" style="background:' + sub.color + '20;color:' + sub.color + '">' + sub.name + '</span>' : '<span></span>') +
+      '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();shareNoteToGroup(\'' + n.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">group</span> Share to Group</button>' +
+      '</div>' +
       '</div>';
   }).join('') : renderEmptyState('notes', 'Your notes await...', 'Capture your ideas, organize your subjects, and let ARIA summarize them for you.', 'Add Note', 'openNoteModal()');
 }
@@ -343,6 +410,7 @@ function viewNote(id) {
   html += '<div class="flex-row flex-wrap gap-sm mt-lg">';
   html += '<button class="btn btn-sm btn-primary" onclick="summarizeNote(\'' + id + '\')"><span class="material-symbols-outlined" style="font-size:14px">auto_awesome</span> AI Summarize</button>';
   html += '<button class="btn btn-sm btn-outline" onclick="shareNote(\'' + id + '\')"><span class="material-symbols-outlined" style="font-size:14px">share</span> Share</button>';
+  html += '<button class="btn btn-sm btn-outline" onclick="shareNoteToGroup(\'' + id + '\')"><span class="material-symbols-outlined" style="font-size:14px">group</span> Share to Group</button>';
   html += '<button class="btn btn-sm btn-secondary" onclick="closeNoteView();editNote(\'' + id + '\')"><span class="material-symbols-outlined" style="font-size:14px">edit</span> Edit</button>';
   html += '<button class="btn btn-sm btn-danger" onclick="deleteNote(\'' + id + '\')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>';
   html += '</div>';
@@ -462,6 +530,34 @@ function shareNote(id) {
   const data = btoa(JSON.stringify({ title: note.title, content: note.content, subject: note.subjectId }));
   const url = window.location.origin + window.location.pathname + '?note=' + data;
   navigator.clipboard.writeText(url).then(() => showToast('Share link copied!', 'success')).catch(() => showToast('Could not copy link', 'error'));
+}
+
+async function shareNoteToGroup(id) {
+  const group = ScholarDB.getStudyGroup();
+  if (!group?.code) { showToast('Join a study group first', 'error'); return; }
+  const note = ScholarDB.getById('notes', id);
+  if (!note) return;
+  const sub = ScholarDB.getSubjectById(note.subjectId);
+  const member = getLocalMember();
+  showToast('Sharing note to group...', 'info');
+  try {
+    const synced = await studyGroupRequest('/api/study-groups/' + encodeURIComponent(group.code) + '/shared-notes', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: 'note-' + id + '-' + member.deviceId,
+        title: note.title,
+        content: note.content,
+        subject: sub ? sub.name : 'General',
+        sharerName: member.name
+      })
+    });
+    saveSyncedGroup(synced);
+    if (currentPage === 'calendar') renderStudyGroup();
+    showToast('Note shared to group', 'success');
+  } catch (error) {
+    lastStudyGroupSyncError = error.message;
+    showToast(error.message, 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -608,7 +704,7 @@ function showCalView(view) {
   btns.forEach(b => b.classList.remove('active'));
   if (view === 'calendar') btns[0].classList.add('active');
   if (view === 'timetable') btns[1].classList.add('active');
-  if (view === 'studygroup') btns[2].classList.add('active');
+  if (view === 'studygroup') { btns[2].classList.add('active'); refreshStudyGroup(); }
 }
 
 function renderCalendar() {
@@ -791,33 +887,110 @@ function renderStudyGroup() {
 
   const sUrl = window.location.origin + window.location.pathname;
   const msg = 'Join my ScholarAI study group! Code: ' + group.code + ' Link: ' + sUrl;
+  const members = group.members || [];
+  const sharedNotes = group.sharedNotes || [];
+  const sharedFiles = group.sharedFiles || [];
+  const syncText = group.lastSynced ? 'Synced ' + new Date(group.lastSynced).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sync pending';
+  const syncStatus = lastStudyGroupSyncError ? '<p class="text-xs mt-sm" style="color:var(--color-danger)">Sync issue: ' + escapeHtml(lastStudyGroupSyncError) + '</p>' : '<p class="text-xs text-muted mt-sm">' + syncText + '</p>';
   
   c.innerHTML = '<div class="card card-dark" style="text-align:center;padding:30px 20px"><p class="text-xs" style="color:var(--color-gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">Group Code</p>' +
-    '<div class="group-code">' + group.code + '</div>' +
+    '<div class="group-code">' + escapeHtml(group.code) + '</div>' +
     '<div class="flex-row gap-sm mt-lg" style="justify-content:center"><button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText(\'' + group.code + '\');showToast(\'Code copied!\',\'success\')"><span class="material-symbols-outlined" style="font-size:16px">content_copy</span> Copy</button>' +
     '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn btn-sm btn-outline" style="border-color:#25D366;color:#25D366"><span class="material-symbols-outlined" style="font-size:16px">chat</span> WhatsApp</a></div></div>' +
-    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="flex-row flex-wrap gap-sm">' + group.members.map(m => '<div class="member-avatar" style="background:' + m.color + '" title="' + m.name + '">' + m.name.charAt(0).toUpperCase() + '</div>').join('') + '</div>' +
+    syncStatus +
+    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="flex-row flex-wrap gap-sm">' + (members.length ? members.map(m => '<div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.name || 'Scholar') + '">' + escapeHtml((m.name || 'S').charAt(0).toUpperCase()) + '</div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
+    '<h3 class="section-title mt-lg mb-sm">Shared Notes</h3><div class="space-y">' + renderSharedNotes(sharedNotes) + '</div>' +
+    '<h3 class="section-title mt-lg mb-sm">Shared Files</h3><div class="space-y">' + renderSharedFiles(sharedFiles) + '</div>' +
     '<button class="btn btn-danger btn-sm mt-lg" style="width:100%" onclick="leaveStudyGroup()">Leave Group</button>';
 }
 
-function createStudyGroup() {
-  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const s = ScholarDB.getSettings();
-  ScholarDB.setStudyGroup({ code, members: [{ id: 'me', name: s.name || 'Me', color: s.avatarColor || '#7B3FA0' }] });
-  renderStudyGroup(); showToast('Group created!', 'success');
+function renderSharedNotes(notes) {
+  if (!notes.length) return '<div class="empty-state" style="padding:24px 12px"><p>No shared notes yet.</p></div>';
+  return notes.map(n => '<div class="card" style="border-left:4px solid var(--color-accent)">' +
+    '<div class="flex-between"><h3 class="heading" style="font-size:15px">' + escapeHtml(n.title || 'Untitled note') + '</h3><span class="text-xs text-muted">' + new Date(n.sharedAt || Date.now()).toLocaleDateString() + '</span></div>' +
+    '<p class="text-xs text-muted mt-sm">' + escapeHtml(n.subject || 'General') + ' • Shared by ' + escapeHtml(n.sharerName || 'Scholar') + '</p>' +
+    '<p class="text-sm mt-sm" style="white-space:pre-wrap;line-height:1.6">' + escapeHtml(n.content || '') + '</p></div>').join('');
 }
 
-function joinStudyGroup() {
+function renderSharedFiles(files) {
+  if (!files.length) return '<div class="empty-state" style="padding:24px 12px"><p>No shared files yet.</p></div>';
+  return files.map(f => '<div class="card flex-between" style="padding:12px 16px">' +
+    '<div class="flex-row gap-md"><div style="width:40px;height:40px;border-radius:8px;background:var(--color-accent)20;color:var(--color-accent);display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined">folder_shared</span></div>' +
+    '<div><strong style="font-size:14px;display:block;margin-bottom:2px" class="truncate">' + escapeHtml(f.name || 'Shared file') + '</strong><span class="text-xs text-muted">' + escapeHtml(f.subject || 'General') + ' • Shared by ' + escapeHtml(f.sharerName || 'Scholar') + '</span></div></div>' +
+    '<button class="btn btn-sm btn-outline" onclick="downloadSharedFile(\'' + escapeHtml(f.id) + '\')"><span class="material-symbols-outlined" style="font-size:14px">download</span></button></div>').join('');
+}
+
+async function createStudyGroup() {
+  showToast('Creating synced group...', 'info');
+  try {
+    const group = await studyGroupRequest('/api/study-groups', {
+      method: 'POST',
+      body: JSON.stringify(getLocalMember())
+    });
+    saveSyncedGroup(group);
+    renderStudyGroup();
+    showToast('Group created!', 'success');
+  } catch (error) {
+    lastStudyGroupSyncError = error.message;
+    renderStudyGroup();
+    showToast(error.message, 'error');
+  }
+}
+
+async function joinStudyGroup() {
   const code = prompt('Enter 6-character group code:');
   if (code && code.length === 6) {
-    const s = ScholarDB.getSettings();
-    ScholarDB.setStudyGroup({ code: code.toUpperCase(), members: [{ id: 'me', name: s.name || 'Me', color: s.avatarColor || '#7B3FA0' }, { id: 'peer1', name: 'Alex', color: '#4A7C59' }] });
-    renderStudyGroup(); showToast('Joined group!', 'success');
+    showToast('Joining synced group...', 'info');
+    try {
+      const group = await studyGroupRequest('/api/study-groups/join', {
+        method: 'POST',
+        body: JSON.stringify({ code: code.toUpperCase(), ...getLocalMember() })
+      });
+      saveSyncedGroup(group);
+      renderStudyGroup();
+      showToast('Joined group!', 'success');
+    } catch (error) {
+      lastStudyGroupSyncError = error.message;
+      renderStudyGroup();
+      showToast(error.message, 'error');
+    }
   } else if (code) showToast('Invalid code', 'error');
 }
 
 function leaveStudyGroup() {
   showConfirm('Leave Group', 'Are you sure you want to leave this study group?', () => { ScholarDB.setStudyGroup(null); renderStudyGroup(); showToast('Left group', 'success'); });
+}
+
+async function refreshStudyGroup(silent = true) {
+  const group = ScholarDB.getStudyGroup();
+  if (!group?.code) return;
+  try {
+    const synced = await studyGroupRequest('/api/study-groups/' + encodeURIComponent(group.code));
+    saveSyncedGroup(synced);
+    if (currentPage === 'calendar' && !document.getElementById('calview-studygroup').classList.contains('hidden')) renderStudyGroup();
+  } catch (error) {
+    lastStudyGroupSyncError = error.message;
+    if (!silent) showToast(error.message, 'error');
+    if (currentPage === 'calendar' && !document.getElementById('calview-studygroup').classList.contains('hidden')) renderStudyGroup();
+  }
+}
+
+function startStudyGroupPolling() {
+  refreshStudyGroup();
+  if (studyGroupPollTimer) clearInterval(studyGroupPollTimer);
+  studyGroupPollTimer = setInterval(() => refreshStudyGroup(), 30000);
+}
+
+function downloadSharedFile(id) {
+  const group = ScholarDB.getStudyGroup();
+  const file = (group?.sharedFiles || []).find(f => f.id === id);
+  if (!file) return;
+  const a = document.createElement('a');
+  a.href = 'data:' + (file.type || 'application/octet-stream') + ';base64,' + file.base64;
+  a.download = file.name || 'shared-file';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -976,7 +1149,7 @@ function renderFileItem(f) {
   return '<div class="card flex-between" style="padding:12px 16px"><div class="flex-row gap-md">' +
     '<div style="width:40px;height:40px;border-radius:8px;background:' + c + '20;color:' + c + ';display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined">' + icon + '</span></div>' +
     '<div><strong style="font-size:14px;display:block;margin-bottom:2px" class="truncate">' + f.name + '</strong><span class="text-xs text-muted">' + sizeStr + ' • ' + dateStr + '</span></div></div>' +
-    '<div class="flex-row gap-sm"><button class="btn btn-sm btn-outline" onclick="downloadFile(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">download</span></button><button class="btn btn-sm" style="color:var(--color-danger)" onclick="deleteFile(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button></div></div>';
+    '<div class="flex-row gap-sm"><button class="btn btn-sm btn-outline" onclick="shareFileToGroup(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">group</span> Share to Group</button><button class="btn btn-sm btn-outline" onclick="downloadFile(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">download</span></button><button class="btn btn-sm" style="color:var(--color-danger)" onclick="deleteFile(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button></div></div>';
 }
 
 function updateStorageDisplay(sizeBytes) {
@@ -1042,6 +1215,40 @@ function downloadFile(id) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+}
+
+async function shareFileToGroup(id) {
+  const group = ScholarDB.getStudyGroup();
+  if (!group?.code) { showToast('Join a study group first', 'error'); return; }
+  const tx = fileDB.transaction('files', 'readonly');
+  tx.objectStore('files').get(id).onsuccess = async e => {
+    const f = e.target.result;
+    if (!f) return;
+    const sub = ScholarDB.getSubjectById(f.subjectId);
+    const member = getLocalMember();
+    const base64 = String(f.data || '').includes(',') ? String(f.data).split(',')[1] : String(f.data || '');
+    showToast('Sharing file to group...', 'info');
+    try {
+      const synced = await studyGroupRequest('/api/study-groups/' + encodeURIComponent(group.code) + '/shared-files', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: 'file-' + id + '-' + member.deviceId,
+          name: f.name,
+          type: f.type,
+          subject: sub ? sub.name : 'General',
+          base64,
+          size: f.size,
+          sharerName: member.name
+        })
+      });
+      saveSyncedGroup(synced);
+      if (currentPage === 'calendar') renderStudyGroup();
+      showToast('File shared to group', 'success');
+    } catch (error) {
+      lastStudyGroupSyncError = error.message;
+      showToast(error.message, 'error');
+    }
   };
 }
 
