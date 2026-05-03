@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scholarai-v3';
+const CACHE_NAME = 'scholarai-v4';
 const APP_ASSETS = [
   './',
   'index.html',
@@ -30,6 +30,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/') || url.hostname.includes('onrender.com')) return;
 
+  // Network-first keeps users on the newest app files, with cache as an offline fallback.
   event.respondWith(
     fetch(event.request)
       .then(response => {
