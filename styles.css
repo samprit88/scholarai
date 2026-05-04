@@ -235,7 +235,8 @@ body.profile-active .main-content{padding-top:16px}
 .group-message.mine .group-message-bubble{background:linear-gradient(135deg,var(--color-gold),var(--color-bg-secondary));color:var(--color-dark);border-top-right-radius:4px}
 .group-message.theirs .group-message-bubble{background:var(--color-dark);color:#FAF3E8;border-top-left-radius:4px}
 .group-message-bubble p{white-space:pre-wrap;font-size:13px;line-height:1.45}
-.group-message-bubble time{display:block;margin-top:5px;font-size:10px;opacity:.7;text-align:right}
+.group-message-bubble time{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:5px;font-size:10px;opacity:.7;text-align:right}
+.group-message-pending{width:6px;height:6px;border-radius:50%;background:var(--color-muted);flex-shrink:0;opacity:.9}
 .group-chat-input-row{display:flex;gap:8px;align-items:flex-end;padding:10px;border-top:1px solid var(--color-border);background:var(--color-bg)}
 .group-chat-input{flex:1;min-height:44px;max-height:110px;padding:11px 13px;border-radius:14px;border:1.5px solid var(--color-border);background:var(--color-bg);font-family:var(--font-body);font-size:13px;color:var(--color-text);resize:vertical;outline:none}
 .group-chat-input::placeholder{color:var(--color-muted)}
