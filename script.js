@@ -94,10 +94,16 @@ function getCurrentTheme() {
 }
 
 function applyTheme(theme, persist = true) {
-  const isDark = theme === 'dark';
-  document.documentElement.toggleAttribute('data-theme', isDark);
+  const nextTheme = theme === 'dark' ? 'dark' : 'light';
+  const isDark = nextTheme === 'dark';
+  document.documentElement.setAttribute('data-theme', nextTheme);
   const metaTheme = document.querySelector('meta[name="theme-color"]');
-  if (metaTheme) metaTheme.setAttribute('content', isDark ? '#1A1025' : '#2D1B4E');
+  if (metaTheme) {
+    metaTheme.setAttribute(
+      'content',
+      nextTheme === 'dark' ? '#1A1025' : '#FAF3E8'
+    );
+  }
   const toggle = document.getElementById('theme-toggle');
   if (toggle) {
     toggle.setAttribute('aria-pressed', String(isDark));
@@ -105,7 +111,7 @@ function applyTheme(theme, persist = true) {
   }
   if (persist) {
     try {
-      localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     } catch (e) {}
   }
 }
@@ -1020,7 +1026,7 @@ function renderCalendar() {
     
     if (dayAsgns.length) dots += '<span class="cal-dot" style="background:var(--color-danger)"></span>';
     dayEvts.forEach(e => {
-      const c = e.type === 'exam' ? 'var(--color-gold)' : e.type === 'holiday' ? '#D4838A' : 'var(--color-success)';
+      const c = e.type === 'exam' ? 'var(--color-gold)' : e.type === 'holiday' ? 'var(--color-rose)' : 'var(--color-success)';
       dots += '<span class="cal-dot" style="background:' + c + '"></span>';
     });
     
@@ -1166,10 +1172,11 @@ function renderEvents() {
   el.innerHTML = all.length ? all.map(e => {
     const sub = ScholarDB.getSubjectById(e.subjectId);
     const d = new Date(e.date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-    const c = e.type === 'exam' ? 'var(--color-gold)' : e.type === 'assignment' ? 'var(--color-danger)' : e.type === 'holiday' ? '#D4838A' : 'var(--color-success)';
+    const c = e.type === 'exam' ? 'var(--color-gold)' : e.type === 'assignment' ? 'var(--color-danger)' : e.type === 'holiday' ? 'var(--color-rose)' : 'var(--color-success)';
+    const bg = e.type === 'exam' ? 'var(--color-soft-gold)' : e.type === 'assignment' ? 'var(--color-soft-danger)' : e.type === 'holiday' ? 'var(--color-soft-plum)' : 'var(--color-soft-sage)';
     return '<div class="card card-sand" style="display:flex;align-items:center;gap:12px;padding:12px;border-left:4px solid ' + c + '">' +
       '<div style="flex:1"><strong style="font-size:14px;display:block">' + escapeHtml(e.title) + '</strong><span class="text-xs text-muted">' + (sub?escapeHtml(sub.name)+' • ':'') + d + (e.time?' '+e.time:'') + '</span>' + (e.description ? '<p class="text-xs text-muted mt-sm">' + escapeHtml(e.description) + '</p>' : '') + '</div>' +
-      '<span class="pill" style="font-size:9px;background:' + c + '20;color:' + c + '">' + escapeHtml(e.type) + '</span></div>';
+      '<span class="pill" style="font-size:9px;background:' + bg + ';color:' + c + '">' + escapeHtml(e.type) + '</span></div>';
   }).join('') : '<div class="empty-state"><span class="material-symbols-outlined">event</span><p>No events yet</p></div>';
 }
 
@@ -1179,14 +1186,7 @@ function renderEvents() {
 function updateStudyGroupNavLabel() {
   const label = document.getElementById('nav-studygroup-label');
   if (!label) return;
-  const group = ScholarDB.getStudyGroup();
-  if (group && group.groupName) {
-    label.textContent = group.groupName;
-  } else if (group && group.code) {
-    label.textContent = 'Group';
-  } else {
-    label.textContent = 'Study Group';
-  }
+  label.textContent = 'Study Groups';
 }
 
 function renderStudyGroup() {
@@ -1195,7 +1195,7 @@ function renderStudyGroup() {
   if (!c) return;
   updateStudyGroupNavLabel();
   if (!group) {
-    c.innerHTML = '<h1 class="heading" style="font-size:24px;margin-bottom:16px">Study Group</h1>' +
+    c.innerHTML = '<h1 class="heading" style="font-size:24px;margin-bottom:16px">Study Groups</h1>' +
       '<div class="empty-state"><span class="material-symbols-outlined">group_add</span><p>No study group yet</p><p class="text-xs text-muted mt-sm">Create or join a group to share notes, files, and chat in real-time.</p></div>' +
       '<div class="grid-2 mt-md"><button class="btn btn-primary" onclick="createStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">add</span> Create Group</button><button class="btn btn-outline" onclick="joinStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">login</span> Join Group</button></div>';
     return;
@@ -1210,12 +1210,12 @@ function renderStudyGroup() {
   const syncText = group.lastSynced ? 'Synced ' + new Date(group.lastSynced).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sync pending';
   const syncStatus = lastStudyGroupSyncError ? '<p class="text-xs mt-sm" style="color:var(--color-danger)">Sync issue: ' + escapeHtml(lastStudyGroupSyncError) + '</p>' : '<p class="text-xs text-muted mt-sm">' + syncText + '</p>';
   
-  const groupTitle = group.groupName ? escapeHtml(group.groupName) : 'Study Group';
-  c.innerHTML = '<h1 class="heading" style="font-size:24px;margin-bottom:16px">' + groupTitle + '</h1>' +
-    '<div class="card card-dark" style="text-align:center;padding:30px 20px"><p class="text-xs" style="color:var(--color-gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">Group Code</p>' +
+  const groupTitle = group.groupName ? escapeHtml(group.groupName) : 'Study Groups';
+  c.innerHTML = '<div class="study-group-header"><div><p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Study Groups</p><h1 class="heading" style="font-size:24px">' + groupTitle + '</h1></div><button class="btn btn-sm btn-outline" onclick="refreshStudyGroup(false)"><span class="material-symbols-outlined" style="font-size:16px">sync</span> Sync</button></div>' +
+    '<div class="card card-dark group-code-card"><p class="text-xs" style="color:var(--color-gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">Group Code</p>' +
     '<div class="group-code">' + escapeHtml(group.code) + '</div>' +
     '<div class="flex-row gap-sm mt-lg" style="justify-content:center"><button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText(\'' + group.code + '\');showToast(\'Code copied!\',\'success\')"><span class="material-symbols-outlined" style="font-size:16px">content_copy</span> Copy</button>' +
-    '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn btn-sm btn-outline" style="border-color:#25D366;color:#25D366"><span class="material-symbols-outlined" style="font-size:16px">chat</span> WhatsApp</a></div></div>' +
+    '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn btn-sm btn-outline" style="border-color:var(--color-whatsapp);color:var(--color-whatsapp)"><span class="material-symbols-outlined" style="font-size:16px">chat</span> WhatsApp</a></div></div>' +
     syncStatus +
     '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.name || 'Scholar') + '">' + escapeHtml(getInitials(m.name || 'Scholar')) + '</div><span>' + escapeHtml(m.name || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Group Chat</h3><div class="group-chat-panel"><div id="group-chat-messages" class="group-chat-messages">' + renderGroupMessages(messages) + '</div><div class="group-chat-input-row"><textarea id="group-chat-input" class="group-chat-input" placeholder="Type a message..." rows="2"></textarea><button class="btn btn-primary btn-pill group-chat-send" onclick="sendGroupMessage()">Send</button></div></div>' +
@@ -2007,12 +2007,12 @@ function setupPWA() {
       style.textContent = `
         :root{--sw-update-banner-height:0px}
         body.sw-update-visible{--sw-update-banner-height:58px}
-        .sw-update-banner{position:fixed;top:0;left:0;right:0;z-index:500;min-height:58px;padding:10px 14px;background:#C4853A;color:#2D1B4E;font-family:var(--font-body,'Plus Jakarta Sans',sans-serif);box-shadow:0 8px 24px rgba(45,27,78,.18);transform:translateY(-100%);transition:transform .32s ease;display:flex;align-items:center;justify-content:center}
+        .sw-update-banner{position:fixed;top:0;left:0;right:0;z-index:500;min-height:58px;padding:10px 14px;background:var(--color-gold);color:var(--color-dark);font-family:var(--font-body,'Plus Jakarta Sans',sans-serif);box-shadow:var(--shadow-lg);transform:translateY(-100%);transition:transform .32s ease;display:flex;align-items:center;justify-content:center}
         .sw-update-banner.active{transform:translateY(0)}
         .sw-update-inner{width:100%;max-width:600px;display:flex;align-items:center;gap:12px}
         .sw-update-message{flex:1;font-size:14px;font-weight:700;line-height:1.35}
-        .sw-update-refresh{flex-shrink:0;border:0;border-radius:10px;background:#fff;color:#2D1B4E;font-family:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(45,27,78,.12)}
-        .sw-update-dismiss{flex-shrink:0;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#2D1B4E;font-family:inherit;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .sw-update-refresh{flex-shrink:0;border:0;border-radius:10px;background:var(--surface);color:var(--color-dark);font-family:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;box-shadow:var(--shadow)}
+        .sw-update-dismiss{flex-shrink:0;width:34px;height:34px;border:0;border-radius:50%;background:var(--color-soft-gold);color:var(--color-dark);font-family:inherit;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
         body.sw-update-visible .top-bar{top:var(--sw-update-banner-height)}
         body.sw-update-visible .main-content{padding-top:calc(76px + var(--sw-update-banner-height))}
         @media(max-width:430px){
