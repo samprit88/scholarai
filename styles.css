@@ -23,12 +23,12 @@ h1,h2,h3,h4,.heading{font-family:var(--font-heading)}
 [data-theme="dark"] .theme-icon-moon{opacity:0;transform:translate(-50%,-50%) rotate(90deg) scale(.55)}
 [data-theme="dark"] .theme-icon-sun{opacity:1;transform:translate(-50%,-50%) rotate(0) scale(1)}
 .icon-btn .badge{position:absolute;top:6px;right:6px;min-width:16px;height:16px;border-radius:99px;background:var(--color-gold);color:var(--color-on-dark);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;display:flex;justify-content:space-around;align-items:center;height:68px;background:var(--color-dark);border-radius:20px 20px 0 0;padding:0 4px;padding-bottom:env(safe-area-inset-bottom)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;display:flex;justify-content:center;align-items:center;height:68px;background:var(--color-dark);border-radius:20px 20px 0 0;padding:4px 6px;padding-bottom:calc(4px + env(safe-area-inset-bottom))}
 body.profile-active .top-bar,body.profile-active .bottom-nav{display:none}
-.nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 6px;border-radius:12px;color:rgba(250,243,232,0.5);text-decoration:none;font-size:9px;font-weight:500;letter-spacing:.02em;text-transform:uppercase;transition:all .2s;cursor:pointer;border:none;background:none;min-width:0}
+.nav-item{display:flex;flex:1 1 0;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;max-width:96px;min-height:56px;padding:5px 4px;border-radius:12px;color:rgba(250,243,232,0.5);text-decoration:none;font-size:9px;font-weight:500;letter-spacing:.02em;line-height:1.05;text-align:center;text-transform:uppercase;transition:all .2s;cursor:pointer;border:none;background:none}
 .nav-item.active{color:var(--color-gold);background:rgba(196,133,58,0.12)}
-.nav-item .material-symbols-outlined{font-size:22px}
-.nav-item span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56px}
+.nav-item .material-symbols-outlined{font-size:22px;line-height:1;flex:0 0 auto}
+.nav-item span:last-child{display:block;max-width:100%;min-height:1.05em;overflow:visible;white-space:normal;overflow-wrap:normal;text-wrap:balance}
 /* -- MAIN -- */
 .main-content{padding:76px 16px 16px;max-width:600px;margin:0 auto}
 body.profile-active .main-content{padding-top:16px}
@@ -293,7 +293,7 @@ body.profile-active .main-content{padding-top:16px}
 .share-more{background:var(--color-gold);color:var(--color-dark)}
 /* -- RESPONSIVE -- */
 @media(max-width:430px){.main-content{padding:70px 12px 12px}.grid-3{grid-template-columns:repeat(3,1fr);gap:8px}.stat-card .stat-num{font-size:22px}.section-title{font-size:16px}.modal{padding:20px 16px}.tt-grid{font-size:9px}}
-@media(max-width:430px){.study-group-header{align-items:flex-start}.study-group-header .btn{padding:7px 10px}.group-code-card{padding:24px 14px}.group-code{font-size:28px;letter-spacing:4px}.group-chat-messages{height:min(45dvh,320px)}.group-chat-input-row{position:sticky;bottom:0;align-items:center}.group-chat-input{resize:none}.group-chat-send{padding-inline:14px}.member-profile{width:64px}.bottom-nav{height:72px}.nav-item{font-size:8px;padding:4px}.nav-item span:last-child{max-width:50px}}
+@media(max-width:430px){.study-group-header{align-items:flex-start}.study-group-header .btn{padding:7px 10px}.group-code-card{padding:24px 14px}.group-code{font-size:28px;letter-spacing:4px}.group-chat-messages{height:min(45dvh,320px)}.group-chat-input-row{position:sticky;bottom:0;align-items:center}.group-chat-input{resize:none}.group-chat-send{padding-inline:14px}.member-profile{width:64px}.bottom-nav{height:74px;padding-inline:4px}.nav-item{font-size:8px;min-height:60px;padding:4px 2px}.nav-item .material-symbols-outlined{font-size:21px}.nav-item span:last-child{line-height:1.05}}
 /* -- MISC -- */
 .search-bar{position:relative}
 .search-bar .material-symbols-outlined{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-muted)}
