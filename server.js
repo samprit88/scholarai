@@ -19,17 +19,26 @@ if (fs.existsSync(envPath)) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const JSONBIN_API_URL = 'https://api.jsonbin.io/v3';
-const groupMessages = {};
+
+// ══════════════════════════════════════════════════════════
+// IN-MEMORY STUDY GROUP STORAGE
+// ══════════════════════════════════════════════════════════
+const groups = {};
 
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(__dirname));
 
+// ══════════════════════════════════════════════════════════
+// HEALTH CHECK
+// ══════════════════════════════════════════════════════════
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// ══════════════════════════════════════════════════════════
+// GROQ AI PROXY
+// ══════════════════════════════════════════════════════════
 app.post('/api/chat', async (req, res) => {
   const apiKey = process.env.GROQ_API_KEY;
 
@@ -59,231 +68,160 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-function requireJsonbinConfig(res) {
-  if (!process.env.JSONBIN_API_KEY) {
-    res.status(500).json({ error: 'JSONBIN_API_KEY is not configured' });
-    return false;
-  }
-  if (!process.env.JSONBIN_INDEX_BIN_ID) {
-    res.status(500).json({ error: 'JSONBIN_INDEX_BIN_ID is not configured' });
-    return false;
-  }
-  return true;
+// ══════════════════════════════════════════════════════════
+// STUDY GROUP ROUTES — ALL IN-MEMORY, INSTANT
+// ══════════════════════════════════════════════════════════
+
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
 }
 
-async function jsonbinRequest(path, options = {}) {
-  const response = await fetch(`${JSONBIN_API_URL}${path}`, {
-    ...options,
-    headers: {
-      'X-Master-Key': process.env.JSONBIN_API_KEY,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  const text = await response.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!response.ok) {
-    const message = data?.message || data?.error || `JSONBin request failed (${response.status})`;
-    throw new Error(message);
-  }
-  return data;
-}
-
-async function readBin(binId) {
-  const data = await jsonbinRequest(`/b/${binId}/latest`, {
-    method: 'GET',
-    headers: { 'X-Bin-Meta': 'false' },
-  });
-  return data?.record || data;
-}
-
-async function updateBin(binId, record) {
-  await jsonbinRequest(`/b/${binId}`, {
-    method: 'PUT',
-    headers: { 'X-Bin-Versioning': 'false' },
-    body: JSON.stringify(record),
-  });
-  return record;
-}
-
-async function createBin(record, name) {
-  const headers = { 'X-Bin-Name': name, 'X-Bin-Private': 'true' };
-  if (process.env.JSONBIN_COLLECTION_ID) headers['X-Collection-Id'] = process.env.JSONBIN_COLLECTION_ID;
-  const data = await jsonbinRequest('/b', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(record),
-  });
-  return data?.metadata?.id || data?.record || data?.id;
-}
-
-function normalizeGroup(record) {
-  return {
-    code: String(record?.code || '').toUpperCase(),
-    members: Array.isArray(record?.members) ? record.members : [],
-    sharedNotes: Array.isArray(record?.sharedNotes) ? record.sharedNotes : [],
-    sharedFiles: Array.isArray(record?.sharedFiles) ? record.sharedFiles : [],
-    messages: Array.isArray(record?.messages) ? record.messages : [],
-  };
-}
-
-function normalizeMessage(message) {
-  const id = String(message?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const text = String(message?.text || '').trim().slice(0, 2000);
-  return {
-    id,
-    senderId: String(message?.senderId || '').trim().slice(0, 120),
-    senderName: String(message?.senderName || 'Scholar').trim().slice(0, 80) || 'Scholar',
-    text,
-    timestamp: Number(message?.timestamp || Date.now()),
-  };
-}
-
-function ensureGroupMessageStore(code, fallbackMessages = []) {
-  const normalizedCode = String(code || '').trim().toUpperCase();
-  if (!normalizedCode) return [];
-  if (!Array.isArray(groupMessages[normalizedCode])) {
-    const seeded = Array.isArray(fallbackMessages) ? fallbackMessages.map(normalizeMessage) : [];
-    groupMessages[normalizedCode] = seeded.slice(-300);
-  }
-  return groupMessages[normalizedCode];
-}
-
-function getGroupMessages(code, fallbackMessages = []) {
-  return ensureGroupMessageStore(code, fallbackMessages).slice();
-}
-
-function addGroupMessage(code, message, fallbackMessages = []) {
-  const messages = ensureGroupMessageStore(code, fallbackMessages);
-  const normalized = normalizeMessage(message);
-  const existingIndex = messages.findIndex(item => item.id === normalized.id);
-  if (existingIndex >= 0) messages[existingIndex] = normalized;
-  else messages.push(normalized);
-  if (messages.length > 300) messages.splice(0, messages.length - 300);
-  groupMessages[String(code || '').trim().toUpperCase()] = messages;
-  return normalized;
-}
-
-function attachGroupMessages(group) {
-  const code = String(group?.code || '').trim().toUpperCase();
-  return {
-    ...group,
-    messages: getGroupMessages(code, group?.messages || []),
-  };
-}
-
-function normalizeIndex(record) {
-  return { groups: record && typeof record.groups === 'object' && !Array.isArray(record.groups) ? record.groups : {} };
-}
-
-function buildMember(body) {
-  return {
-    id: String(body.deviceId || '').trim(),
-    name: String(body.name || 'Scholar').trim().slice(0, 80) || 'Scholar',
-    color: String(body.avatarColor || '#7B3FA0').trim().slice(0, 24),
-    joinedAt: Date.now(),
-  };
-}
-
-function addOrUpdateMember(group, member) {
-  if (!member.id) throw new Error('Missing device ID');
-  const existing = group.members.find(m => m.id === member.id);
-  if (existing) {
-    existing.name = member.name;
-    existing.color = member.color;
-    existing.lastSeen = Date.now();
-  } else {
-    group.members.push(member);
-  }
-}
-
-async function getGroupBinId(code) {
-  const index = normalizeIndex(await readBin(process.env.JSONBIN_INDEX_BIN_ID));
-  return { index, binId: index.groups[code] };
-}
-
-app.post('/api/study-groups', async (req, res) => {
-  if (!requireJsonbinConfig(res)) return;
+// POST /api/group/create — create a new group
+app.post('/api/group/create', (req, res) => {
   try {
-    const member = buildMember(req.body || {});
-    let index = normalizeIndex(await readBin(process.env.JSONBIN_INDEX_BIN_ID));
+    const { memberName, memberId, memberColor, groupName } = req.body || {};
+    if (!memberId) return res.status(400).json({ error: 'Missing memberId' });
+
     let code = '';
-    for (let i = 0; i < 10; i++) {
-      code = Math.random().toString(36).slice(2, 8).toUpperCase();
-      if (!index.groups[code]) break;
+    for (let i = 0; i < 20; i++) {
+      code = generateCode();
+      if (!groups[code]) break;
     }
-    if (!code || index.groups[code]) return res.status(409).json({ error: 'Could not generate a unique group code' });
+    if (groups[code]) return res.status(409).json({ error: 'Could not generate unique code' });
 
-    const group = normalizeGroup({ code, members: [member], sharedNotes: [], sharedFiles: [], messages: [] });
-    const binId = await createBin(group, `ScholarAI-${code}`);
-    ensureGroupMessageStore(code, group.messages);
-    index.groups[code] = binId;
-    await updateBin(process.env.JSONBIN_INDEX_BIN_ID, index);
-    res.json({ ...attachGroupMessages(group), binId });
+    const group = {
+      code,
+      groupName: String(groupName || '').trim().slice(0, 60) || '',
+      members: [{
+        id: String(memberId).trim(),
+        name: String(memberName || 'Scholar').trim().slice(0, 80),
+        color: String(memberColor || '#7B3FA0').trim().slice(0, 24),
+        joinedAt: Date.now()
+      }],
+      messages: [],
+      sharedNotes: [],
+      sharedFiles: [],
+      createdAt: Date.now()
+    };
+
+    groups[code] = group;
+    res.json(group);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/study-groups/join', async (req, res) => {
-  if (!requireJsonbinConfig(res)) return;
+// POST /api/group/join — join an existing group
+app.post('/api/group/join', (req, res) => {
   try {
-    const code = String(req.body?.code || '').trim().toUpperCase();
-    if (!/^[A-Z0-9]{6}$/.test(code)) return res.status(400).json({ error: 'Invalid group code' });
-    const { binId } = await getGroupBinId(code);
-    if (!binId) return res.status(404).json({ error: 'Group code not found' });
-    const group = normalizeGroup(await readBin(binId));
-    addOrUpdateMember(group, buildMember(req.body || {}));
-    await updateBin(binId, group);
-    res.json({ ...attachGroupMessages(group), binId });
+    const { code, memberName, memberId, memberColor } = req.body || {};
+    const normalizedCode = String(code || '').trim().toUpperCase();
+
+    if (!/^[A-Z0-9]{6}$/.test(normalizedCode)) {
+      return res.status(400).json({ error: 'Invalid group code' });
+    }
+
+    const group = groups[normalizedCode];
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (!memberId) return res.status(400).json({ error: 'Missing memberId' });
+
+    const existing = group.members.find(m => m.id === String(memberId).trim());
+    if (existing) {
+      existing.name = String(memberName || 'Scholar').trim().slice(0, 80);
+      existing.color = String(memberColor || existing.color).trim().slice(0, 24);
+      existing.lastSeen = Date.now();
+    } else {
+      group.members.push({
+        id: String(memberId).trim(),
+        name: String(memberName || 'Scholar').trim().slice(0, 80),
+        color: String(memberColor || '#7B3FA0').trim().slice(0, 24),
+        joinedAt: Date.now()
+      });
+    }
+
+    res.json(group);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/study-groups/:code', async (req, res) => {
-  if (!requireJsonbinConfig(res)) return;
+// GET /api/group/:code — get full group data
+app.get('/api/group/:code', (req, res) => {
   try {
     const code = String(req.params.code || '').trim().toUpperCase();
-    const { binId } = await getGroupBinId(code);
-    if (!binId) return res.status(404).json({ error: 'Group code not found' });
-    res.json({ ...attachGroupMessages(normalizeGroup(await readBin(binId))), binId });
+    const group = groups[code];
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    res.json(group);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/study-groups/:code/shared-notes', async (req, res) => {
-  if (!requireJsonbinConfig(res)) return;
+// POST /api/group/:code/message — send a chat message
+app.post('/api/group/:code/message', (req, res) => {
   try {
     const code = String(req.params.code || '').trim().toUpperCase();
-    const { binId } = await getGroupBinId(code);
-    if (!binId) return res.status(404).json({ error: 'Group code not found' });
-    const group = normalizeGroup(await readBin(binId));
+    const group = groups[code];
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+
+    const { senderId, senderName, text, timestamp } = req.body || {};
+    if (!senderId) return res.status(400).json({ error: 'Missing senderId' });
+    if (!text || !String(text).trim()) return res.status(400).json({ error: 'Missing message text' });
+
+    const message = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      senderId: String(senderId).trim().slice(0, 120),
+      senderName: String(senderName || 'Scholar').trim().slice(0, 80),
+      text: String(text).trim().slice(0, 2000),
+      timestamp: Number(timestamp || Date.now())
+    };
+
+    group.messages.push(message);
+    // Keep last 300 messages
+    if (group.messages.length > 300) group.messages.splice(0, group.messages.length - 300);
+
+    res.json({ success: true, message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/group/:code/share-note — share a note to group
+app.post('/api/group/:code/share-note', (req, res) => {
+  try {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    const group = groups[code];
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+
     const note = {
       id: String(req.body?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
       title: String(req.body?.title || 'Untitled note').slice(0, 160),
       content: String(req.body?.content || ''),
       subject: String(req.body?.subject || 'General').slice(0, 120),
       sharerName: String(req.body?.sharerName || 'Scholar').slice(0, 80),
-      sharedAt: Date.now(),
+      sharedAt: Date.now()
     };
-    if (!group.sharedNotes.some(n => n.id === note.id)) group.sharedNotes.unshift(note);
-    await updateBin(binId, group);
-    res.json({ ...attachGroupMessages(group), binId });
+
+    if (!group.sharedNotes.some(n => n.id === note.id)) {
+      group.sharedNotes.unshift(note);
+    }
+
+    res.json({ success: true, group });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/study-groups/:code/shared-files', async (req, res) => {
-  if (!requireJsonbinConfig(res)) return;
+// POST /api/group/:code/share-file — share a file to group
+app.post('/api/group/:code/share-file', (req, res) => {
   try {
     const code = String(req.params.code || '').trim().toUpperCase();
-    const { binId } = await getGroupBinId(code);
-    if (!binId) return res.status(404).json({ error: 'Group code not found' });
-    const group = normalizeGroup(await readBin(binId));
+    const group = groups[code];
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+
     const file = {
       id: String(req.body?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
       name: String(req.body?.name || 'Shared file').slice(0, 180),
@@ -292,51 +230,19 @@ app.post('/api/study-groups/:code/shared-files', async (req, res) => {
       base64: String(req.body?.base64 || ''),
       size: Number(req.body?.size || 0),
       sharerName: String(req.body?.sharerName || 'Scholar').slice(0, 80),
-      sharedAt: Date.now(),
+      sharedAt: Date.now()
     };
+
     if (!file.base64) return res.status(400).json({ error: 'Missing file data' });
-    if (!group.sharedFiles.some(f => f.id === file.id)) group.sharedFiles.unshift(file);
-    await updateBin(binId, group);
-    res.json({ ...attachGroupMessages(group), binId });
+    if (!group.sharedFiles.some(f => f.id === file.id)) {
+      group.sharedFiles.unshift(file);
+    }
+
+    res.json({ success: true, group });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
-async function readGroupMessagesHandler(req, res) {
-  if (!requireJsonbinConfig(res)) return;
-  try {
-    const code = String(req.params.code || '').trim().toUpperCase();
-    const { binId } = await getGroupBinId(code);
-    if (!binId) return res.status(404).json({ error: 'Group code not found' });
-    const group = normalizeGroup(await readBin(binId));
-    res.json({ messages: getGroupMessages(code, group.messages) });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-}
-
-async function writeGroupMessagesHandler(req, res) {
-  if (!requireJsonbinConfig(res)) return;
-  try {
-    const code = String(req.params.code || '').trim().toUpperCase();
-    const { binId } = await getGroupBinId(code);
-    if (!binId) return res.status(404).json({ error: 'Group code not found' });
-    const group = normalizeGroup(await readBin(binId));
-    const message = normalizeMessage(req.body || {});
-    if (!message.senderId) return res.status(400).json({ error: 'Missing sender ID' });
-    if (!message.text) return res.status(400).json({ error: 'Missing message text' });
-    addGroupMessage(code, message, group.messages);
-    res.json({ message, messages: getGroupMessages(code, group.messages) });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-}
-
-app.get('/api/group/:code/messages', readGroupMessagesHandler);
-app.post('/api/group/:code/messages', writeGroupMessagesHandler);
-app.get('/api/study-groups/:code/messages', readGroupMessagesHandler);
-app.post('/api/study-groups/:code/messages', writeGroupMessagesHandler);
 
 app.listen(PORT, () => {
   console.log(`ScholarAI proxy server running on port ${PORT}`);
