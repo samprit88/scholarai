@@ -18,12 +18,8 @@ let studyGroupPollTimer = null;
 let studyGroupPollInFlight = false;
 let studyGroupLastActivityAt = Date.now();
 let lastStudyGroupSyncError = '';
-const STUDY_GROUP_API_BASE = ['localhost', '127.0.0.1'].includes(window.location.hostname) ? '' : 'https://scholarai-api.onrender.com';
+const STUDY_GROUP_API_BASE = 'https://scholarai-api.onrender.com';
 const STUDY_GROUP_POLL_FAST = 1500;
-const STUDY_GROUP_POLL_SLOW = 5000;
-const STUDY_GROUP_POLL_IDLE = 15000;
-const STUDY_GROUP_POLL_SLOW_AFTER = 30000;
-const STUDY_GROUP_POLL_IDLE_AFTER = 120000;
 const THEME_STORAGE_KEY = 'scholarai-theme';
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -292,9 +288,6 @@ function setStudyGroupActivity(timestamp = Date.now()) {
 }
 
 function getStudyGroupPollDelay() {
-  const idleFor = Date.now() - studyGroupLastActivityAt;
-  if (idleFor >= STUDY_GROUP_POLL_IDLE_AFTER) return STUDY_GROUP_POLL_IDLE;
-  if (idleFor >= STUDY_GROUP_POLL_SLOW_AFTER) return STUDY_GROUP_POLL_SLOW;
   return STUDY_GROUP_POLL_FAST;
 }
 
@@ -1335,19 +1328,38 @@ function renderSharedFiles(files) {
 async function createStudyGroup() {
   const groupName = prompt('Enter a name for your study group (e.g. Warriors, Physics Squad):');
   if (!groupName || !groupName.trim()) return;
-  const c = document.getElementById('group-content');
-  if (c) c.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;padding:60px 20px"><div class="sg-spinner"></div><p class="text-muted mt-md">Creating group...</p></div>';
   try {
     const member = getLocalMember();
-    const group = await studyGroupRequest('/api/group/create', {
+    const created = await studyGroupRequest('/api/group/create', {
       method: 'POST',
-      body: JSON.stringify({ memberName: member.name, memberId: member.deviceId, memberColor: member.avatarColor, groupName: groupName.trim() })
+      body: JSON.stringify({})
     });
+    const group = {
+      ...normalizeSyncedGroup(created),
+      groupName: groupName.trim(),
+      members: [{
+        id: member.deviceId,
+        name: member.name,
+        color: member.avatarColor,
+        joinedAt: Date.now()
+      }]
+    };
     saveSyncedGroup(group);
-    startStudyGroupPolling();
     renderStudyGroup();
     updateStudyGroupNavLabel();
-    showToast('Group "' + group.groupName + '" created!', 'success');
+    showToast('Group code: ' + group.code, 'success');
+    studyGroupRequest('/api/group/join', {
+      method: 'POST',
+      body: JSON.stringify({ code: group.code, memberName: member.name, memberId: member.deviceId, memberColor: member.avatarColor })
+    }).then(synced => {
+      const current = ScholarDB.getStudyGroup();
+      saveSyncedGroup({ ...synced, groupName: current?.groupName || group.groupName });
+      if (currentPage === 'studygroup') renderStudyGroup();
+    }).catch(error => {
+      lastStudyGroupSyncError = error.message;
+      if (currentPage === 'studygroup') renderStudyGroup();
+    });
+    startStudyGroupPolling();
   } catch (error) {
     lastStudyGroupSyncError = error.message;
     renderStudyGroup();
@@ -1358,8 +1370,6 @@ async function createStudyGroup() {
 async function joinStudyGroup() {
   const code = prompt('Enter 6-character group code:');
   if (code && code.trim().length === 6) {
-    const c = document.getElementById('group-content');
-    if (c) c.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;padding:60px 20px"><div class="sg-spinner"></div><p class="text-muted mt-md">Joining group...</p></div>';
     try {
       const member = getLocalMember();
       const group = await studyGroupRequest('/api/group/join', {
@@ -1388,7 +1398,7 @@ async function refreshStudyGroup(silent = true) {
   if (!group?.code) return;
   try {
     const synced = await studyGroupRequest('/api/group/' + encodeURIComponent(group.code));
-    saveSyncedGroup(synced);
+    saveSyncedGroup({ ...synced, groupName: group.groupName || synced.groupName });
     if (isStudyGroupViewVisible()) renderStudyGroup();
   } catch (error) {
     lastStudyGroupSyncError = error.message;
@@ -1730,7 +1740,7 @@ async function shareFileToGroup(id) {
     const base64 = String(f.data || '').includes(',') ? String(f.data).split(',')[1] : String(f.data || '');
     showToast('Sharing file to group...', 'info');
     try {
-      const synced = await studyGroupRequest('/api/study-groups/' + encodeURIComponent(group.code) + '/shared-files', {
+      const synced = await studyGroupRequest('/api/group/' + encodeURIComponent(group.code) + '/share-file', {
         method: 'POST',
         body: JSON.stringify({
           id: 'file-' + id + '-' + member.deviceId,
@@ -1742,8 +1752,8 @@ async function shareFileToGroup(id) {
           sharerName: member.name
         })
       });
-      saveSyncedGroup(synced);
-      if (currentPage === 'calendar') renderStudyGroup();
+      if (synced.group) saveSyncedGroup({ ...synced.group, groupName: group.groupName });
+      if (currentPage === 'studygroup') renderStudyGroup();
       showToast('File shared to group', 'success');
     } catch (error) {
       lastStudyGroupSyncError = error.message;

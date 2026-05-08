@@ -82,9 +82,6 @@ function generateCode() {
 // POST /api/group/create — create a new group
 app.post('/api/group/create', (req, res) => {
   try {
-    const { memberName, memberId, memberColor, groupName } = req.body || {};
-    if (!memberId) return res.status(400).json({ error: 'Missing memberId' });
-
     let code = '';
     for (let i = 0; i < 20; i++) {
       code = generateCode();
@@ -94,21 +91,14 @@ app.post('/api/group/create', (req, res) => {
 
     const group = {
       code,
-      groupName: String(groupName || '').trim().slice(0, 60) || '',
-      members: [{
-        id: String(memberId).trim(),
-        name: String(memberName || 'Scholar').trim().slice(0, 80),
-        color: String(memberColor || '#7B3FA0').trim().slice(0, 24),
-        joinedAt: Date.now()
-      }],
+      members: [],
       messages: [],
       sharedNotes: [],
-      sharedFiles: [],
-      createdAt: Date.now()
+      sharedFiles: []
     };
 
     groups[code] = group;
-    res.json(group);
+    res.json({ code });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
