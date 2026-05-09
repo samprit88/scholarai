@@ -21,6 +21,7 @@ let smartCalMonth, smartCalYear, smartCalendarSelectedDate;
 let smartCalendarTimers = [];
 let studyGroupActiveTab = 'group';
 let studyGroupMessagesRef = null;
+let studyGroupMembersRef = null;
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
 const SMART_CALENDAR_TIMER_MAX = 2147483647;
@@ -154,8 +155,10 @@ function renderFirebaseUserNav() {
 }
 
 async function signOutUser() {
-  await window.ScholarFirebase?.auth?.signOut();
-  window.location.replace('login.html');
+  showConfirm('Sign Out', 'Are you sure you want to sign out?', async () => {
+    await window.ScholarFirebase?.auth?.signOut();
+    window.location.replace('login.html');
+  });
 }
 
 function navigateTo(page) {
@@ -319,8 +322,13 @@ function setStudyGroupActivity(timestamp = Date.now()) {
 }
 
 function getStudyGroupMessagesRef(groupCode) {
-  const db = window.ScholarFirebase?.database;
+  const db = window.ScholarFirebase?.database || (window.firebase ? firebase.database() : null);
   return db && groupCode ? db.ref('studyGroups/' + String(groupCode).toUpperCase() + '/messages') : null;
+}
+
+function getStudyGroupMembersRef(groupCode) {
+  const db = window.ScholarFirebase?.database || (window.firebase ? firebase.database() : null);
+  return db && groupCode ? db.ref('studyGroups/' + String(groupCode).toUpperCase() + '/members') : null;
 }
 
 function listenToStudyGroupMessages(group) {
@@ -350,6 +358,27 @@ function listenToStudyGroupMessages(group) {
   });
 }
 
+function listenToStudyGroupMembers(group) {
+  if (studyGroupMembersRef) {
+    studyGroupMembersRef.off();
+    studyGroupMembersRef = null;
+  }
+  if (!group?.code) return;
+  studyGroupMembersRef = getStudyGroupMembersRef(group.code);
+  if (!studyGroupMembersRef) return;
+  studyGroupMembersRef.on('value', snapshot => {
+    const members = [];
+    snapshot.forEach(child => {
+      members.push({ uid: child.key, ...child.val() });
+    });
+    const current = ScholarDB.getStudyGroup();
+    if (current?.code === group.code) {
+      ScholarDB.setStudyGroup({ ...current, members });
+      if (isStudyGroupViewVisible()) renderStudyGroup();
+    }
+  });
+}
+
 function getStudyGroupPollDelay() {
   return STUDY_GROUP_POLL_FAST;
 }
@@ -360,6 +389,10 @@ function clearStudyGroupPolling() {
   if (studyGroupMessagesRef) {
     studyGroupMessagesRef.off();
     studyGroupMessagesRef = null;
+  }
+  if (studyGroupMembersRef) {
+    studyGroupMembersRef.off();
+    studyGroupMembersRef = null;
   }
 }
 
@@ -1529,7 +1562,7 @@ function renderStudyGroup() {
     '<div class="flex-row gap-sm mt-lg" style="justify-content:center"><button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText(\'' + group.code + '\');showToast(\'Code copied!\',\'success\')"><span class="material-symbols-outlined" style="font-size:16px">content_copy</span> Copy</button>' +
     '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn btn-sm btn-outline" style="border-color:var(--color-whatsapp);color:var(--color-whatsapp)"><span class="material-symbols-outlined" style="font-size:16px">chat</span> WhatsApp</a></div></div>' +
     syncStatus +
-    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.name || 'Scholar') + '">' + escapeHtml(getInitials(m.name || 'Scholar')) + '</div><span>' + escapeHtml(m.name || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
+    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.displayName || m.name || 'Scholar') + '">' + (m.photoURL ? '<img src="' + escapeHtml(m.photoURL) + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover">' : escapeHtml(getInitials(m.displayName || m.name || 'Scholar'))) + '</div><span>' + escapeHtml(m.displayName || m.name || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Group Chat</h3><div class="group-chat-panel"><div id="group-chat-messages" class="group-chat-messages">' + renderGroupMessages(messages) + '</div><div class="group-chat-input-row"><textarea id="group-chat-input" class="group-chat-input" placeholder="Type a message..." rows="2"></textarea><button class="btn btn-primary btn-pill group-chat-send" onclick="sendGroupMessage()">Send</button></div></div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Notes</h3><div class="space-y">' + renderSharedNotes(sharedNotes) + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Files</h3><div class="space-y">' + renderSharedFiles(sharedFiles) + '</div>' +
@@ -1639,6 +1672,18 @@ async function createStudyGroup() {
       }]
     };
     saveSyncedGroup(group);
+    
+    // Save to Realtime Database
+    const user = window.ScholarFirebase?.auth?.currentUser || (window.firebase ? window.firebase.auth().currentUser : null);
+    const membersRef = getStudyGroupMembersRef(code);
+    if (membersRef) {
+      membersRef.child(user?.uid || member.deviceId).set({
+        displayName: user?.displayName || 'Scholar',
+        photoURL: user?.photoURL || null,
+        uid: user?.uid || member.deviceId
+      });
+    }
+
     renderStudyGroup();
     updateStudyGroupNavLabel();
     showToast('Group code: ' + group.code, 'success');
@@ -1670,6 +1715,18 @@ async function joinStudyGroup() {
         }]
       };
       saveSyncedGroup(group);
+      
+      // Save to Realtime Database
+      const user = window.ScholarFirebase?.auth?.currentUser || (window.firebase ? window.firebase.auth().currentUser : null);
+      const membersRef = getStudyGroupMembersRef(code);
+      if (membersRef) {
+        membersRef.child(user?.uid || member.deviceId).set({
+          displayName: user?.displayName || 'Scholar',
+          photoURL: user?.photoURL || null,
+          uid: user?.uid || member.deviceId
+        });
+      }
+
       startStudyGroupPolling();
       renderStudyGroup();
       updateStudyGroupNavLabel();
@@ -1690,6 +1747,7 @@ async function refreshStudyGroup(silent = true) {
   const group = ScholarDB.getStudyGroup();
   if (!group?.code) return;
   listenToStudyGroupMessages(group);
+  listenToStudyGroupMembers(group);
   if (!silent) showToast('Realtime chat synced', 'success');
   if (isStudyGroupViewVisible()) renderStudyGroup();
 }
@@ -1700,6 +1758,7 @@ function startStudyGroupPolling() {
   if (!group?.code) return;
   setStudyGroupActivity();
   listenToStudyGroupMessages(group);
+  listenToStudyGroupMembers(group);
 }
 
 async function refreshStudyGroupMessages(silent = true) {
@@ -2258,7 +2317,7 @@ function setupPWA() {
         .sw-update-banner.active{transform:translateY(0)}
         .sw-update-inner{width:100%;max-width:600px;display:flex;align-items:center;gap:12px}
         .sw-update-message{flex:1;font-size:14px;font-weight:700;line-height:1.35}
-        .sw-update-refresh{flex-shrink:0;border:0;border-radius:10px;background:var(--surface);color:var(--color-dark);font-family:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;box-shadow:var(--shadow)}
+        .sw-update-refresh{flex-shrink:0;border:0;border-radius:10px;background:#C4853A;color:#FAF3E8;font-family:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;box-shadow:var(--shadow)}
         .sw-update-dismiss{flex-shrink:0;width:34px;height:34px;border:0;border-radius:50%;background:var(--color-soft-gold);color:var(--color-dark);font-family:inherit;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
         body.sw-update-visible .top-bar{top:var(--sw-update-banner-height)}
         body.sw-update-visible .main-content{padding-top:calc(76px + var(--sw-update-banner-height))}
@@ -2296,6 +2355,7 @@ function setupPWA() {
       banner.querySelector('.sw-update-refresh')?.addEventListener('click', () => {
         if (!waitingServiceWorker) return;
         waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+        setTimeout(() => window.location.reload(), 300);
       });
 
       banner.querySelector('.sw-update-dismiss')?.addEventListener('click', () => {
