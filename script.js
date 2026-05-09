@@ -18,9 +18,12 @@ let studyGroupPollTimer = null;
 let studyGroupPollInFlight = false;
 let studyGroupLastActivityAt = Date.now();
 let lastStudyGroupSyncError = '';
+let smartCalMonth, smartCalYear, smartCalendarSelectedDate;
+let smartCalendarTimers = [];
 const STUDY_GROUP_API_BASE = 'https://scholarai-api.onrender.com';
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
+const SMART_CALENDAR_TIMER_MAX = 2147483647;
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -64,6 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   calMonth = now.getMonth();
   calYear = now.getFullYear();
+  smartCalMonth = now.getMonth();
+  smartCalYear = now.getFullYear();
+  smartCalendarSelectedDate = formatDateKey(now);
 
   if (!ScholarDB.isOnboarded()) {
     document.getElementById('onboarding').classList.remove('hidden');
@@ -75,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPWA();
   setupAriaInput();
   setupKeepAlivePing();
+  initSmartCalendarReminders();
   startStudyGroupPolling();
   renderNavProfileIcon();
   updateStudyGroupNavLabel();
@@ -188,6 +195,16 @@ function escapeHtml(value) {
     '"': '&quot;',
     "'": '&#39;'
   }[ch]));
+}
+
+function formatDateKey(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function parseDateKey(dateKey) {
+  const [year, month, day] = String(dateKey || '').split('-').map(Number);
+  return new Date(year || new Date().getFullYear(), (month || 1) - 1, day || 1);
 }
 
 function getDeviceId() {
@@ -1183,6 +1200,242 @@ function renderEvents() {
 // ══════════════════════════════════════════════════════════
 // STUDY GROUP
 // ══════════════════════════════════════════════════════════
+function renderSmartCalendarSection() {
+  return '<section id="smart-calendar-section" class="smart-calendar-section mt-lg">' +
+    '<div class="smart-calendar-title-row"><div><p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Private Planner</p><h2 class="section-title">Smart Calendar</h2></div><button class="btn btn-sm btn-outline" onclick="requestSmartCalendarNotificationPermission()"><span class="material-symbols-outlined" style="font-size:16px">notifications</span> Reminders</button></div>' +
+    '<div class="smart-calendar-shell">' +
+      '<div class="smart-calendar-toolbar"><button class="icon-btn smart-calendar-nav" onclick="changeSmartCalendarMonth(-1)" aria-label="Previous month"><span class="material-symbols-outlined">chevron_left</span></button><h3 id="smart-calendar-month-title" class="heading"></h3><button class="icon-btn smart-calendar-nav" onclick="changeSmartCalendarMonth(1)" aria-label="Next month"><span class="material-symbols-outlined">chevron_right</span></button></div>' +
+      '<div id="smart-calendar-grid" class="smart-calendar-grid" aria-label="Smart Calendar month view"></div>' +
+      '<div class="smart-calendar-day-panel"><div class="flex-between gap-sm"><div><h3 id="smart-calendar-selected-title" class="heading"></h3><p class="text-xs text-muted">Personal reminders only</p></div><button class="btn btn-sm btn-primary" onclick="openSmartCalendarModal(smartCalendarSelectedDate)"><span class="material-symbols-outlined" style="font-size:16px">add</span> Add</button></div><div id="smart-calendar-event-list" class="smart-calendar-event-list"></div></div>' +
+    '</div>' +
+  '</section>';
+}
+
+function getSmartCalendarEvents() {
+  return ScholarDB.getAll('smartCalendarEvents').sort((a, b) => {
+    const ad = `${a.date || ''} ${a.time || '23:59'}`;
+    const bd = `${b.date || ''} ${b.time || '23:59'}`;
+    return ad.localeCompare(bd);
+  });
+}
+
+function renderSmartCalendar() {
+  const grid = document.getElementById('smart-calendar-grid');
+  const title = document.getElementById('smart-calendar-month-title');
+  if (!grid || !title) return;
+  title.textContent = MONTHS[smartCalMonth] + ' ' + smartCalYear;
+  const events = getSmartCalendarEvents();
+  const firstDay = new Date(smartCalYear, smartCalMonth, 1).getDay();
+  const daysInMonth = new Date(smartCalYear, smartCalMonth + 1, 0).getDate();
+  const prevMonthDays = new Date(smartCalYear, smartCalMonth, 0).getDate();
+  const todayKey = formatDateKey(new Date());
+  let html = '';
+
+  ['S','M','T','W','T','F','S'].forEach(day => html += '<div class="smart-calendar-weekday">' + day + '</div>');
+  for (let i = firstDay - 1; i >= 0; i--) {
+    html += '<button class="smart-calendar-day other-month" type="button" disabled><span>' + (prevMonthDays - i) + '</span></button>';
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateKey = smartCalYear + '-' + String(smartCalMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const dayEvents = events.filter(event => event.date === dateKey);
+    const classes = [
+      'smart-calendar-day',
+      dateKey === todayKey ? 'today' : '',
+      dateKey === smartCalendarSelectedDate ? 'selected' : '',
+      dayEvents.length ? 'has-events' : ''
+    ].filter(Boolean).join(' ');
+    html += '<button class="' + classes + '" type="button" onclick="selectSmartCalendarDate(\'' + dateKey + '\')"><span>' + day + '</span>' + (dayEvents.length ? '<i aria-hidden="true"></i>' : '') + '</button>';
+  }
+  grid.innerHTML = html;
+  renderSmartCalendarDayEvents();
+}
+
+function renderSmartCalendarDayEvents() {
+  const title = document.getElementById('smart-calendar-selected-title');
+  const list = document.getElementById('smart-calendar-event-list');
+  if (!title || !list) return;
+  const selectedDate = parseDateKey(smartCalendarSelectedDate);
+  title.textContent = selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const dayEvents = getSmartCalendarEvents().filter(event => event.date === smartCalendarSelectedDate);
+  list.innerHTML = dayEvents.length ? dayEvents.map(event => {
+    const time = event.time ? formatTime12(event.time) : 'All day';
+    return '<div class="smart-calendar-event">' +
+      '<div class="smart-calendar-event-time">' + escapeHtml(time) + '</div>' +
+      '<div class="smart-calendar-event-copy"><strong>' + escapeHtml(event.title || 'Untitled reminder') + '</strong>' +
+      (event.description ? '<p>' + escapeHtml(event.description) + '</p>' : '') + '</div>' +
+      '<div class="smart-calendar-event-actions"><button class="icon-btn" onclick="openSmartCalendarModal(\'' + escapeHtml(event.date) + '\',\'' + escapeHtml(event.id) + '\')" aria-label="Edit reminder"><span class="material-symbols-outlined">edit</span></button><button class="icon-btn" onclick="deleteSmartCalendarEvent(\'' + escapeHtml(event.id) + '\')" aria-label="Delete reminder"><span class="material-symbols-outlined">delete</span></button></div>' +
+    '</div>';
+  }).join('') : '<div class="empty-state smart-calendar-empty"><span class="material-symbols-outlined">event_available</span><p>No reminders for this date.</p></div>';
+}
+
+function selectSmartCalendarDate(dateKey) {
+  smartCalendarSelectedDate = dateKey;
+  const selected = parseDateKey(dateKey);
+  smartCalMonth = selected.getMonth();
+  smartCalYear = selected.getFullYear();
+  renderSmartCalendar();
+  openSmartCalendarModal(dateKey);
+}
+
+function changeSmartCalendarMonth(dir) {
+  smartCalMonth += dir;
+  if (smartCalMonth > 11) { smartCalMonth = 0; smartCalYear++; }
+  if (smartCalMonth < 0) { smartCalMonth = 11; smartCalYear--; }
+  renderSmartCalendar();
+}
+
+function openSmartCalendarModal(dateKey, eventId = '') {
+  const event = eventId ? ScholarDB.getById('smartCalendarEvents', eventId) : null;
+  const modal = document.getElementById('smart-calendar-modal-overlay');
+  if (!modal) return;
+  document.getElementById('smart-calendar-modal-title').textContent = event ? 'Edit Reminder' : 'Add Reminder';
+  document.getElementById('smart-calendar-edit-id').value = event?.id || '';
+  document.getElementById('smart-calendar-title').value = event?.title || '';
+  document.getElementById('smart-calendar-desc').value = event?.description || '';
+  document.getElementById('smart-calendar-date').value = event?.date || dateKey || smartCalendarSelectedDate || formatDateKey(new Date());
+  document.getElementById('smart-calendar-time').value = event?.time || '';
+  document.getElementById('smart-calendar-delete-btn').style.display = event ? 'inline-flex' : 'none';
+  modal.classList.add('active');
+}
+
+function closeSmartCalendarModal() {
+  document.getElementById('smart-calendar-modal-overlay')?.classList.remove('active');
+}
+
+async function saveSmartCalendarEvent() {
+  const title = document.getElementById('smart-calendar-title').value.trim();
+  const description = document.getElementById('smart-calendar-desc').value.trim();
+  const date = document.getElementById('smart-calendar-date').value;
+  const time = document.getElementById('smart-calendar-time').value;
+  const editId = document.getElementById('smart-calendar-edit-id').value;
+  if (!title || !date) { showToast('Title and date required', 'error'); return; }
+
+  const data = { title, description, date, time, updatedAt: Date.now() };
+  const saved = editId ? ScholarDB.update('smartCalendarEvents', editId, data) : ScholarDB.add('smartCalendarEvents', { ...data, createdAt: Date.now(), notifiedAt: null });
+  smartCalendarSelectedDate = date;
+  const selected = parseDateKey(date);
+  smartCalMonth = selected.getMonth();
+  smartCalYear = selected.getFullYear();
+  closeSmartCalendarModal();
+  renderSmartCalendar();
+  scheduleSmartCalendarReminders();
+  if (time && getSmartCalendarEventTime(saved) > Date.now()) await requestSmartCalendarNotificationPermission();
+  showToast(editId ? 'Reminder updated' : 'Reminder added', 'success');
+}
+
+function deleteSmartCalendarEvent(id) {
+  showConfirm('Delete Reminder', 'Remove this personal reminder?', () => {
+    ScholarDB.remove('smartCalendarEvents', id);
+    scheduleSmartCalendarReminders();
+    renderSmartCalendar();
+    showToast('Reminder deleted', 'success');
+  });
+}
+
+function deleteSmartCalendarEventFromModal() {
+  const id = document.getElementById('smart-calendar-edit-id').value;
+  if (!id) return;
+  closeSmartCalendarModal();
+  deleteSmartCalendarEvent(id);
+}
+
+function formatTime12(time) {
+  const [hours, minutes] = String(time || '').split(':').map(Number);
+  if (Number.isNaN(hours)) return '';
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  const hour = hours % 12 || 12;
+  return hour + ':' + String(minutes || 0).padStart(2, '0') + ' ' + suffix;
+}
+
+function getSmartCalendarEventTime(event) {
+  if (!event?.date || !event?.time) return 0;
+  return new Date(event.date + 'T' + event.time + ':00').getTime();
+}
+
+function initSmartCalendarReminders() {
+  scheduleSmartCalendarReminders();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) scheduleSmartCalendarReminders();
+  });
+}
+
+function scheduleSmartCalendarReminders() {
+  smartCalendarTimers.forEach(timer => clearTimeout(timer));
+  smartCalendarTimers = [];
+  const now = Date.now();
+  const serviceWorkerSchedules = [];
+  getSmartCalendarEvents().forEach(event => {
+    const reminderAt = getSmartCalendarEventTime(event);
+    if (!reminderAt) return;
+    if (event.notifiedAt && Number(event.notifiedAt) >= reminderAt) return;
+    const delay = reminderAt - now;
+    if (delay <= 0) {
+      showSmartCalendarNotification(event);
+    } else if (delay <= SMART_CALENDAR_TIMER_MAX) {
+      smartCalendarTimers.push(setTimeout(() => showSmartCalendarNotification(event), delay));
+      serviceWorkerSchedules.push({
+        eventId: event.id,
+        title: 'ScholarAI Reminder',
+        body: event.title + ' at ' + formatTime12(event.time),
+        delay
+      });
+    }
+  });
+  syncSmartCalendarSchedulesToServiceWorker(serviceWorkerSchedules);
+}
+
+function syncSmartCalendarSchedulesToServiceWorker(schedules) {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready.then(registration => {
+    if (!registration.active) return;
+    registration.active.postMessage({ type: 'SMART_CALENDAR_CLEAR' });
+    schedules.forEach(schedule => registration.active.postMessage({ type: 'SMART_CALENDAR_SCHEDULE', ...schedule }));
+  }).catch(() => {});
+}
+
+async function requestSmartCalendarNotificationPermission() {
+  if (!('Notification' in window)) {
+    showToast('Notifications are not supported in this browser', 'error');
+    return false;
+  }
+  if (Notification.permission === 'granted') {
+    showToast('Calendar reminders are enabled', 'success');
+    return true;
+  }
+  if (Notification.permission === 'denied') {
+    showToast('Notifications are blocked in browser settings', 'error');
+    return false;
+  }
+  const result = await Notification.requestPermission();
+  const granted = result === 'granted';
+  showToast(granted ? 'Calendar reminders enabled' : 'Calendar reminders not enabled', granted ? 'success' : 'error');
+  return granted;
+}
+
+async function showSmartCalendarNotification(event) {
+  if (!event?.id || !event.time || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const reminderAt = getSmartCalendarEventTime(event);
+  if (event.notifiedAt && Number(event.notifiedAt) >= reminderAt) return;
+  const body = event.title + ' at ' + formatTime12(event.time);
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration.active) {
+        registration.active.postMessage({ type: 'SMART_CALENDAR_NOTIFY', title: 'ScholarAI Reminder', body, eventId: event.id });
+      } else if (registration.showNotification) {
+        registration.showNotification('ScholarAI Reminder', { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'smart-calendar-' + event.id, data: { url: './', eventId: event.id } });
+      }
+    } else {
+      new Notification('ScholarAI Reminder', { body, icon: '/icons/icon-192.png', tag: 'smart-calendar-' + event.id });
+    }
+    ScholarDB.update('smartCalendarEvents', event.id, { notifiedAt: reminderAt });
+    Notifications.addInApp('ScholarAI Reminder', body, 'info');
+    Notifications.updateBadge();
+  } catch (error) {
+    console.log('Smart calendar notification failed:', error);
+  }
+}
+
 function updateStudyGroupNavLabel() {
   const label = document.getElementById('nav-studygroup-label');
   if (!label) return;
@@ -1197,7 +1450,9 @@ function renderStudyGroup() {
   if (!group) {
     c.innerHTML = '<h1 class="heading" style="font-size:24px;margin-bottom:16px">Study Groups</h1>' +
       '<div class="empty-state"><span class="material-symbols-outlined">group_add</span><p>No study group yet</p><p class="text-xs text-muted mt-sm">Create or join a group to share notes, files, and chat in real-time.</p></div>' +
-      '<div class="grid-2 mt-md"><button class="btn btn-primary" onclick="createStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">add</span> Create Group</button><button class="btn btn-outline" onclick="joinStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">login</span> Join Group</button></div>';
+      '<div class="grid-2 mt-md"><button class="btn btn-primary" onclick="createStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">add</span> Create Group</button><button class="btn btn-outline" onclick="joinStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">login</span> Join Group</button></div>' +
+      renderSmartCalendarSection();
+    requestAnimationFrame(renderSmartCalendar);
     return;
   }
 
@@ -1219,10 +1474,14 @@ function renderStudyGroup() {
     syncStatus +
     '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.name || 'Scholar') + '">' + escapeHtml(getInitials(m.name || 'Scholar')) + '</div><span>' + escapeHtml(m.name || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Group Chat</h3><div class="group-chat-panel"><div id="group-chat-messages" class="group-chat-messages">' + renderGroupMessages(messages) + '</div><div class="group-chat-input-row"><textarea id="group-chat-input" class="group-chat-input" placeholder="Type a message..." rows="2"></textarea><button class="btn btn-primary btn-pill group-chat-send" onclick="sendGroupMessage()">Send</button></div></div>' +
+    renderSmartCalendarSection() +
     '<h3 class="section-title mt-lg mb-sm">Shared Notes</h3><div class="space-y">' + renderSharedNotes(sharedNotes) + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Files</h3><div class="space-y">' + renderSharedFiles(sharedFiles) + '</div>' +
     '<button class="btn btn-danger btn-sm mt-lg" style="width:100%" onclick="leaveStudyGroup()">Leave Group</button>';
-  requestAnimationFrame(() => scrollGroupChatToBottom(false));
+  requestAnimationFrame(() => {
+    scrollGroupChatToBottom(false);
+    renderSmartCalendar();
+  });
 }
 
 function renderGroupMessages(messages) {
@@ -2080,7 +2339,7 @@ function setupPWA() {
       refreshing = true;
       window.location.reload();
     });
-    navigator.serviceWorker.register('service-worker.js?v=4')
+    navigator.serviceWorker.register('service-worker.js?v=6')
       .then(r => {
         console.log('SW Registered', r.scope);
         watchRegistrationForUpdates(r);

@@ -3,7 +3,7 @@
  * Manages all localStorage stores for ScholarAI
  */
 const ScholarDB = (() => {
-    const STORES = ['subjects', 'notes', 'assignments', 'timetable', 'events', 'groupMembers', 'settings', 'studyGroup', 'notifications'];
+    const STORES = ['subjects', 'notes', 'assignments', 'timetable', 'events', 'smartCalendarEvents', 'groupMembers', 'settings', 'studyGroup', 'notifications'];
     const DB_PREFIX = 'scholarai_';
 
     // ── Helpers ──────────────────────────────────────────
@@ -51,6 +51,10 @@ const ScholarDB = (() => {
         return [];
     }
 
+    function defaultSmartCalendarEvents() {
+        return [];
+    }
+
     function defaultSettings() {
         return {
             name: 'Scholar',
@@ -76,6 +80,7 @@ const ScholarDB = (() => {
             set('assignments', defaultAssignments());
             set('timetable', defaultTimetable());
             set('events', defaultEvents());
+            set('smartCalendarEvents', defaultSmartCalendarEvents());
             set('groupMembers', []);
             set('settings', defaultSettings());
             set('studyGroup', null);

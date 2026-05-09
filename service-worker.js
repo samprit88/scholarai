@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scholarai-v5';
+const CACHE_NAME = 'scholarai-v6';
 const APP_ASSETS = [
   './',
   'index.html',
@@ -9,6 +9,7 @@ const APP_ASSETS = [
   'script.js',
   'manifest.json'
 ];
+const smartCalendarTimers = new Map();
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_ASSETS)));
@@ -27,6 +28,55 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data?.type === 'SMART_CALENDAR_CLEAR') {
+    smartCalendarTimers.forEach(timer => clearTimeout(timer));
+    smartCalendarTimers.clear();
+  }
+  if (event.data?.type === 'SMART_CALENDAR_SCHEDULE') {
+    const delay = Number(event.data.delay || 0);
+    const eventId = event.data.eventId || String(Date.now());
+    if (smartCalendarTimers.has(eventId)) clearTimeout(smartCalendarTimers.get(eventId));
+    if (delay > 0 && delay <= 2147483647) {
+      const timer = setTimeout(() => {
+        smartCalendarTimers.delete(eventId);
+        self.registration.showNotification(event.data.title || 'ScholarAI Reminder', {
+          body: event.data.body || 'You have a reminder.',
+          icon: '/icons/icon-192.png',
+          badge: '/icons/icon-192.png',
+          tag: 'smart-calendar-' + eventId,
+          renotify: true,
+          data: { url: './', eventId }
+        }).catch(() => {});
+      }, delay);
+      smartCalendarTimers.set(eventId, timer);
+    }
+  }
+  if (event.data?.type === 'SMART_CALENDAR_NOTIFY') {
+    const title = event.data.title || 'ScholarAI Reminder';
+    const body = event.data.body || 'You have a reminder.';
+    event.waitUntil(self.registration.showNotification(title, {
+      body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: 'smart-calendar-' + (event.data.eventId || Date.now()),
+      renotify: true,
+      data: { url: './', eventId: event.data.eventId || '' }
+    }));
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || './';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+      return null;
+    })
+  );
 });
 
 self.addEventListener('fetch', (event) => {

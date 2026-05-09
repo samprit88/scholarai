@@ -254,6 +254,21 @@
   </section>
 </div>
 
+<!-- --- SMART CALENDAR MODAL --- -->
+<div id="smart-calendar-modal-overlay" class="modal-overlay">
+  <div class="modal smart-calendar-modal">
+    <div class="modal-header"><h2 id="smart-calendar-modal-title">Add Reminder</h2><button class="modal-close" onclick="closeSmartCalendarModal()"><span class="material-symbols-outlined">close</span></button></div>
+    <input id="smart-calendar-edit-id" type="hidden">
+    <div class="form-group"><label>Event Title</label><input id="smart-calendar-title" class="input" placeholder="Math assignment due"></div>
+    <div class="form-group"><label>Description</label><textarea id="smart-calendar-desc" class="textarea" placeholder="Optional details..." style="min-height:96px"></textarea></div>
+    <div class="grid-2"><div class="form-group"><label>Date</label><input id="smart-calendar-date" class="input" type="date"></div><div class="form-group"><label>Time</label><input id="smart-calendar-time" class="input" type="time"></div></div>
+    <div class="smart-calendar-modal-actions">
+      <button id="smart-calendar-delete-btn" class="btn btn-danger" type="button" onclick="deleteSmartCalendarEventFromModal()">Delete</button>
+      <button class="btn btn-primary" type="button" onclick="saveSmartCalendarEvent()">Save Reminder</button>
+    </div>
+  </div>
+</div>
+
 <!-- --- EVENT MODAL --- -->
 <div id="event-modal-overlay" class="modal-overlay">
   <div class="modal">
