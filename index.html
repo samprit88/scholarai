@@ -6,6 +6,18 @@
 <title>ScholarAI � Your Knowledge. Your Legacy.</title>
 <meta name="description" content="ScholarAI is a premium student productivity app with AI-powered notes, assignments, timetable, and study companion.">
 <meta name="theme-color" content="#FAF3E8">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  document.documentElement.classList.add('auth-checking');
+  firebase.auth().onAuthStateChanged(user => {
+    if (!user) window.location.replace('login.html');
+    else document.documentElement.classList.remove('auth-checking');
+  });
+</script>
 <script>
   (function () {
     const savedTheme = localStorage.getItem('scholarai-theme');
@@ -70,6 +82,7 @@
 <header class="top-bar">
   <div class="brand-row"><span class="logo">ScholarAI</span><button id="nav-profile-btn" class="nav-profile-btn" onclick="openProfilePage()" aria-label="Open profile"></button></div>
   <div class="actions">
+    <span id="nav-user-name" class="nav-user-name"></span>
     <button id="theme-toggle" class="icon-btn theme-toggle" type="button" onclick="toggleTheme()" aria-label="Switch to dark mode" aria-pressed="false">
       <span class="material-symbols-outlined theme-icon theme-icon-moon">dark_mode</span>
       <span class="material-symbols-outlined theme-icon theme-icon-sun">light_mode</span>
@@ -79,6 +92,7 @@
       <span class="badge" id="notif-badge" style="display:none">0</span>
     </button>
     <button class="icon-btn" onclick="navigateTo('settings')"><span class="material-symbols-outlined">settings</span></button>
+    <button class="icon-btn" onclick="signOutUser()" aria-label="Sign out"><span class="material-symbols-outlined">logout</span></button>
   </div>
 </header>
 

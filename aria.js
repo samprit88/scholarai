@@ -22,12 +22,61 @@ const ARIA = (() => {
         return map[p] || map.warm;
     }
 
-    function buildSystemPrompt() {
+    function capContext(text, maxChars = 3200) {
+        if (text.length <= maxChars) return text;
+        return text.slice(0, maxChars - 80) + '\n[Context capped to 800 tokens maximum.]';
+    }
+
+    async function fetchFirestoreStudentContext() {
+        const user = window.ScholarFirebase?.auth?.currentUser;
+        const db = window.ScholarFirebase?.firestore;
+        if (!user || !db) return '';
+        try {
+            const base = db.collection('users').doc(user.uid);
+            const [assignmentSnap, timetableDoc, notesSnap] = await Promise.all([
+                base.collection('assignments').get(),
+                base.collection('timetable').doc('weeklySchedule').get(),
+                base.collection('notes').get()
+            ]);
+
+            const assignments = assignmentSnap.docs.map(doc => {
+                const a = doc.data();
+                return `- ${a.title || 'Untitled'} | ${a.subject || a.subjectId || 'General'} | deadline: ${a.deadline || a.dueDate || 'none'} | status: ${a.status || 'todo'}`;
+            }).join('\n') || 'None';
+
+            const timetableData = timetableDoc.exists ? timetableDoc.data() : {};
+            const timetableItems = Array.isArray(timetableData.items) ? timetableData.items : [];
+            const timetable = timetableItems.map(item => {
+                return `- ${item.day || 'Day'} ${item.startTime || ''}-${item.endTime || ''}: ${item.subject || item.subjectId || 'Class'} ${item.room ? '(' + item.room + ')' : ''}`;
+            }).join('\n') || 'None';
+
+            const notes = notesSnap.docs.map(doc => {
+                const n = doc.data();
+                return `- ${n.title || 'Untitled'} | ${n.subject || n.subjectId || 'General'}`;
+            }).join('\n') || 'None';
+
+            return capContext(`You are ARIA, the AI study assistant inside ScholarAI. Here is this student's current data:
+STUDENT NAME: ${user.displayName || 'Scholar'}
+TODAY: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+ASSIGNMENTS:
+${assignments}
+TIMETABLE:
+${timetable}
+NOTES:
+${notes}
+Use this context to give personalized, proactive advice. If you notice upcoming deadlines or subjects not recently studied, mention them proactively.`);
+        } catch (error) {
+            return '';
+        }
+    }
+
+    async function buildSystemPrompt() {
         const settings = ScholarDB.getSettings();
         const subjects = ScholarDB.getAll('subjects');
         const notes = ScholarDB.getAll('notes');
         const assignments = ScholarDB.getAll('assignments').filter(a => a.status !== 'done');
         const events = ScholarDB.getAll('events');
+        const liveStudentContext = await fetchFirestoreStudentContext();
 
         const subjectInfo = subjects.map(s => {
             const noteCount = notes.filter(n => n.subjectId === s.id).length;
@@ -43,7 +92,7 @@ const ARIA = (() => {
             return `${e.title} (${e.type}) on ${e.date}`;
         }).join('; ');
 
-        return `You are ARIA, a warm intelligent and deeply knowledgeable AI study companion for students.
+        return `${liveStudentContext ? liveStudentContext + '\n\n' : ''}You are ARIA, a warm intelligent and deeply knowledgeable AI study companion for students.
 
 You have access to student data:
 - Student name: ${settings.name || 'Scholar'}
@@ -91,7 +140,7 @@ Your personality: ${getPersonalityPrompt()}`;
 
     // ── Chat ────────────────────────────────────────────
     async function chat(userMessage) {
-        const systemPrompt = buildSystemPrompt();
+        const systemPrompt = await buildSystemPrompt();
         conversationHistory.push({ role: 'user', content: userMessage });
 
         // Keep last 20 messages for context window

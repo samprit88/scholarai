@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ScholarAI Login</title>
+<meta name="theme-color" content="#FAF3E8">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  (function () {
+    const savedTheme = localStorage.getItem('scholarai-theme');
+    const theme = savedTheme === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#1A1025' : '#FAF3E8');
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FAF3E8;--surface:#fffaf2;--text:#2D1B4E;--accent:#C4853A;--muted:#7C6A91;--border:#d8cfc2;--shadow:0 18px 55px -32px rgba(45,27,78,.45)}
+[data-theme="dark"]{color-scheme:dark;--bg:#1A1025;--surface:#2D1B4E;--text:#FAF3E8;--accent:#C4853A;--muted:#BCA9CE;--border:#4D3B6E;--shadow:0 20px 60px -34px rgba(0,0,0,.72)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100dvh;background:var(--bg);color:var(--text);font-family:"Plus Jakarta Sans",sans-serif;display:grid;place-items:center;padding:24px}
+.login-shell{width:min(100%,430px);display:grid;gap:22px}
+.brand-mark{width:76px;height:76px;border-radius:22px;background:var(--text);color:var(--accent);display:grid;place-items:center;font-family:"Playfair Display",serif;font-size:34px;font-weight:700;box-shadow:var(--shadow)}
+.login-card{border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:var(--shadow);padding:28px}
+h1{font-family:"Playfair Display",serif;font-size:42px;line-height:1;color:var(--text);margin:18px 0 8px}
+.tagline{font-family:"Playfair Display",serif;font-size:18px;color:var(--muted);margin-bottom:22px}
+.copy{font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:24px}
+.google-btn{width:100%;min-height:52px;border:0;border-radius:12px;background:var(--text);color:#FAF3E8;font-family:inherit;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 12px 28px -22px rgba(45,27,78,.75);transition:transform .18s ease,filter .18s ease}
+.google-btn:hover{filter:brightness(1.08)}
+.google-btn:active{transform:translateY(1px)}
+.google-dot{width:20px;height:20px;border-radius:50%;background:var(--accent);display:grid;place-items:center;color:var(--text);font-weight:900}
+.status{min-height:20px;margin-top:14px;font-size:12px;color:var(--muted);text-align:center}
+.footer-note{font-size:11px;color:var(--muted);text-align:center;line-height:1.5}
+@media(max-width:430px){body{padding:18px}.login-card{padding:24px 20px;border-radius:16px}h1{font-size:36px}.brand-mark{width:68px;height:68px;border-radius:18px}}
+</style>
+</head>
+<body>
+  <main class="login-shell">
+    <section class="login-card">
+      <div class="brand-mark">S</div>
+      <h1>ScholarAI</h1>
+      <p class="tagline">Your AI Study Companion</p>
+      <p class="copy">Sign in to keep your notes, assignments, timetable, and study group messages connected across your devices.</p>
+      <button class="google-btn" type="button" onclick="continueWithGoogle()"><span class="google-dot">G</span><span>Continue with Google</span></button>
+      <div id="login-status" class="status" aria-live="polite"></div>
+    </section>
+    <p class="footer-note">Secure Firebase authentication. Your ScholarAI workspace opens after sign-in.</p>
+  </main>
+  <script>
+    ScholarFirebase.auth.onAuthStateChanged(user => {
+      if (user) window.location.replace('index.html');
+    });
+
+    async function continueWithGoogle() {
+      const status = document.getElementById('login-status');
+      status.textContent = 'Opening Google sign-in...';
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await ScholarFirebase.auth.signInWithPopup(provider);
+        window.location.replace('index.html');
+      } catch (error) {
+        status.textContent = error.message || 'Google sign-in failed.';
+      }
+    }
+  </script>
+</body>
+</html>

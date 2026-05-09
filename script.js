@@ -15,13 +15,12 @@ let fileDB = null;
 let obSubjects = [];
 let deferredPrompt = null;
 let studyGroupPollTimer = null;
-let studyGroupPollInFlight = false;
 let studyGroupLastActivityAt = Date.now();
 let lastStudyGroupSyncError = '';
 let smartCalMonth, smartCalYear, smartCalendarSelectedDate;
 let smartCalendarTimers = [];
 let studyGroupActiveTab = 'group';
-const STUDY_GROUP_API_BASE = 'https://scholarai-api.onrender.com';
+let studyGroupMessagesRef = null;
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
 const SMART_CALENDAR_TIMER_MAX = 2147483647;
@@ -61,9 +60,15 @@ const STUDY_TIPS = [
   'Review mistakes in previous tests — they show what to focus on.'
 ];
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await window.ScholarFirebase?.authReady;
+  if (!user) {
+    window.location.replace('login.html');
+    return;
+  }
   initThemeToggle();
   ScholarDB.init();
+  await ScholarDB.initCloud(user);
   initFileDB();
   const now = new Date();
   calMonth = now.getMonth();
@@ -85,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSmartCalendarReminders();
   startStudyGroupPolling();
   renderNavProfileIcon();
+  renderFirebaseUserNav();
   updateStudyGroupNavLabel();
 
   // Check for shared note
@@ -139,6 +145,17 @@ function setupKeepAlivePing() {
   const ping = () => fetch('https://scholarai-api.onrender.com/health', { method: 'GET', cache: 'no-store' }).catch(() => {});
   ping();
   setInterval(ping, 4 * 60 * 1000);
+}
+
+function renderFirebaseUserNav() {
+  const user = window.ScholarFirebase?.auth?.currentUser;
+  const nameEl = document.getElementById('nav-user-name');
+  if (nameEl) nameEl.textContent = user?.displayName || '';
+}
+
+async function signOutUser() {
+  await window.ScholarFirebase?.auth?.signOut();
+  window.location.replace('login.html');
 }
 
 function navigateTo(page) {
@@ -220,24 +237,13 @@ function getDeviceId() {
 
 function getLocalMember() {
   const settings = ScholarDB.getSettings();
+  const user = window.ScholarFirebase?.auth?.currentUser;
   return {
-    deviceId: getDeviceId(),
-    name: settings.name || 'Scholar',
+    deviceId: user?.uid || getDeviceId(),
+    name: user?.displayName || settings.name || 'Scholar',
+    photoURL: user?.photoURL || settings.avatarPhoto || '',
     avatarColor: settings.avatarColor || '#7B3FA0'
   };
-}
-
-async function studyGroupRequest(path, options = {}) {
-  const response = await fetch(STUDY_GROUP_API_BASE + path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    }
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Study group sync failed');
-  return data;
 }
 
 function normalizeSyncedGroup(group) {
@@ -263,8 +269,9 @@ function saveSyncedGroup(group) {
 function normalizeStudyGroupMessage(message) {
   return {
     id: String(message?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
-    senderId: String(message?.senderId || '').trim().slice(0, 120),
-    senderName: String(message?.senderName || 'Scholar').trim().slice(0, 80) || 'Scholar',
+    senderId: String(message?.senderId || message?.uid || '').trim().slice(0, 120),
+    senderName: String(message?.senderName || message?.displayName || 'Scholar').trim().slice(0, 80) || 'Scholar',
+    photoURL: String(message?.photoURL || '').trim(),
     text: String(message?.text || '').trim().slice(0, 2000),
     timestamp: Number(message?.timestamp || Date.now()),
     pending: Boolean(message?.pending),
@@ -311,6 +318,38 @@ function setStudyGroupActivity(timestamp = Date.now()) {
   studyGroupLastActivityAt = timestamp;
 }
 
+function getStudyGroupMessagesRef(groupCode) {
+  const db = window.ScholarFirebase?.database;
+  return db && groupCode ? db.ref('studyGroups/' + String(groupCode).toUpperCase() + '/messages') : null;
+}
+
+function listenToStudyGroupMessages(group) {
+  if (studyGroupMessagesRef) {
+    studyGroupMessagesRef.off();
+    studyGroupMessagesRef = null;
+  }
+  if (!group?.code) return;
+  studyGroupMessagesRef = getStudyGroupMessagesRef(group.code);
+  if (!studyGroupMessagesRef) return;
+  studyGroupMessagesRef.on('value', snapshot => {
+    const messages = [];
+    snapshot.forEach(child => {
+      messages.push(normalizeStudyGroupMessage({ id: child.key, ...child.val() }));
+    });
+    messages.sort((a, b) => a.timestamp - b.timestamp);
+    const current = ScholarDB.getStudyGroup();
+    if (current?.code === group.code) {
+      ScholarDB.setStudyGroup({ ...current, messages, lastSynced: Date.now() });
+      lastStudyGroupSyncError = '';
+      if (isStudyGroupViewVisible()) renderGroupChatMessages();
+      updateStudyGroupNavLabel();
+    }
+  }, error => {
+    lastStudyGroupSyncError = error.message;
+    if (isStudyGroupViewVisible()) renderStudyGroup();
+  });
+}
+
 function getStudyGroupPollDelay() {
   return STUDY_GROUP_POLL_FAST;
 }
@@ -318,15 +357,16 @@ function getStudyGroupPollDelay() {
 function clearStudyGroupPolling() {
   if (studyGroupPollTimer) clearTimeout(studyGroupPollTimer);
   studyGroupPollTimer = null;
+  if (studyGroupMessagesRef) {
+    studyGroupMessagesRef.off();
+    studyGroupMessagesRef = null;
+  }
 }
 
 function scheduleStudyGroupPolling(delay = getStudyGroupPollDelay()) {
-  clearStudyGroupPolling();
   const group = ScholarDB.getStudyGroup();
-  if (!group?.code) return;
-  studyGroupPollTimer = setTimeout(() => {
-    refreshStudyGroupMessages().catch(() => {});
-  }, delay);
+  if (!group?.code || studyGroupMessagesRef) return;
+  listenToStudyGroupMessages(group);
 }
 
 function isStudyGroupViewVisible() {
@@ -381,7 +421,10 @@ function renderNavProfileIcon() {
   const btn = document.getElementById('nav-profile-btn');
   if (!btn) return;
   const settings = ScholarDB.getSettings();
-  btn.innerHTML = renderAvatarHtml(settings, 'nav-profile');
+  const user = window.ScholarFirebase?.auth?.currentUser;
+  btn.innerHTML = user?.photoURL
+    ? '<img class="nav-profile-img" src="' + escapeHtml(user.photoURL) + '" alt="Google profile photo">'
+    : renderAvatarHtml(settings, 'nav-profile');
 }
 
 function openProfilePage() {
@@ -845,25 +888,17 @@ async function shareNoteToGroup(id) {
   if (!note) return;
   const sub = ScholarDB.getSubjectById(note.subjectId);
   const member = getLocalMember();
-  showToast('Sharing note to group...', 'info');
-  try {
-    const synced = await studyGroupRequest('/api/group/' + encodeURIComponent(group.code) + '/share-note', {
-      method: 'POST',
-      body: JSON.stringify({
-        id: 'note-' + id + '-' + member.deviceId,
-        title: note.title,
-        content: note.content,
-        subject: sub ? sub.name : 'General',
-        sharerName: member.name
-      })
-    });
-    if (synced.group) saveSyncedGroup(synced.group);
-    if (currentPage === 'studygroup') renderStudyGroup();
-    showToast('Note shared to group', 'success');
-  } catch (error) {
-    lastStudyGroupSyncError = error.message;
-    showToast(error.message, 'error');
-  }
+  const sharedNote = {
+    id: 'note-' + id + '-' + member.deviceId,
+    title: note.title,
+    content: note.content,
+    subject: sub ? sub.name : 'General',
+    sharerName: member.name,
+    sharedAt: Date.now()
+  };
+  saveSyncedGroup({ ...group, sharedNotes: [...(group.sharedNotes || []).filter(n => n.id !== sharedNote.id), sharedNote] });
+  if (currentPage === 'studygroup') renderStudyGroup();
+  showToast('Note shared to group', 'success');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1505,7 +1540,7 @@ function renderStudyGroup() {
 
 function renderGroupMessages(messages) {
   if (!messages.length) return '<div class="group-chat-empty">No messages yet — say hello!</div>';
-  const localId = getDeviceId();
+  const localId = getLocalMember().deviceId;
   return messages.map(message => {
     const mine = message.senderId === localId;
     const time = formatRelativeTime(message.timestamp || Date.now());
@@ -1546,43 +1581,23 @@ async function sendGroupMessage() {
   const text = input?.value.trim();
   if (!group?.code || !text) return;
   const member = getLocalMember();
-  const message = normalizeStudyGroupMessage({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    senderId: member.deviceId,
-    senderName: member.name,
-    text,
-    timestamp: Date.now(),
-    pending: true
-  });
   // Optimistic UI — show message instantly
   input.value = '';
-  updateStudyGroupMessages([message]);
-  renderGroupChatMessages();
-  scrollGroupChatToBottom(true);
   setStudyGroupActivity();
   try {
-    await studyGroupRequest('/api/group/' + encodeURIComponent(group.code) + '/message', {
-      method: 'POST',
-      body: JSON.stringify({
-        senderId: member.deviceId,
-        senderName: member.name,
-        text: message.text,
-        timestamp: message.timestamp
-      })
+    const ref = getStudyGroupMessagesRef(group.code);
+    if (!ref) throw new Error('Realtime Database is not available');
+    await ref.push({
+      uid: member.deviceId,
+      displayName: member.name,
+      photoURL: member.photoURL || '',
+      text,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
     });
-    // Mark as confirmed
-    const current = ScholarDB.getStudyGroup();
-    if (current) {
-      const msgs = (current.messages || []).map(m => m.id === message.id ? { ...m, pending: false } : m);
-      ScholarDB.setStudyGroup({ ...current, messages: msgs });
-    }
-    if (isStudyGroupViewVisible()) renderGroupChatMessages();
-    setStudyGroupActivity();
   } catch (error) {
     lastStudyGroupSyncError = error.message;
-    removeStudyGroupMessage(message.id);
     if (input) input.value = text;
-    if (isStudyGroupViewVisible()) renderGroupChatMessages();
+    if (isStudyGroupViewVisible()) renderStudyGroup();
     showToast(error.message, 'error');
   }
 }
@@ -1608,16 +1623,17 @@ async function createStudyGroup() {
   if (!groupName || !groupName.trim()) return;
   try {
     const member = getLocalMember();
-    const created = await studyGroupRequest('/api/group/create', {
-      method: 'POST',
-      body: JSON.stringify({})
-    });
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     const group = {
-      ...normalizeSyncedGroup(created),
+      code,
       groupName: groupName.trim(),
+      messages: [],
+      sharedNotes: [],
+      sharedFiles: [],
       members: [{
         id: member.deviceId,
         name: member.name,
+        photoURL: member.photoURL || '',
         color: member.avatarColor,
         joinedAt: Date.now()
       }]
@@ -1626,17 +1642,6 @@ async function createStudyGroup() {
     renderStudyGroup();
     updateStudyGroupNavLabel();
     showToast('Group code: ' + group.code, 'success');
-    studyGroupRequest('/api/group/join', {
-      method: 'POST',
-      body: JSON.stringify({ code: group.code, memberName: member.name, memberId: member.deviceId, memberColor: member.avatarColor })
-    }).then(synced => {
-      const current = ScholarDB.getStudyGroup();
-      saveSyncedGroup({ ...synced, groupName: current?.groupName || group.groupName });
-      if (currentPage === 'studygroup') renderStudyGroup();
-    }).catch(error => {
-      lastStudyGroupSyncError = error.message;
-      if (currentPage === 'studygroup') renderStudyGroup();
-    });
     startStudyGroupPolling();
   } catch (error) {
     lastStudyGroupSyncError = error.message;
@@ -1650,10 +1655,20 @@ async function joinStudyGroup() {
   if (code && code.trim().length === 6) {
     try {
       const member = getLocalMember();
-      const group = await studyGroupRequest('/api/group/join', {
-        method: 'POST',
-        body: JSON.stringify({ code: code.trim().toUpperCase(), memberName: member.name, memberId: member.deviceId, memberColor: member.avatarColor })
-      });
+      const group = {
+        code: code.trim().toUpperCase(),
+        groupName: 'Study Group',
+        messages: [],
+        sharedNotes: [],
+        sharedFiles: [],
+        members: [{
+          id: member.deviceId,
+          name: member.name,
+          photoURL: member.photoURL || '',
+          color: member.avatarColor,
+          joinedAt: Date.now()
+        }]
+      };
       saveSyncedGroup(group);
       startStudyGroupPolling();
       renderStudyGroup();
@@ -1674,15 +1689,9 @@ function leaveStudyGroup() {
 async function refreshStudyGroup(silent = true) {
   const group = ScholarDB.getStudyGroup();
   if (!group?.code) return;
-  try {
-    const synced = await studyGroupRequest('/api/group/' + encodeURIComponent(group.code));
-    saveSyncedGroup({ ...synced, groupName: group.groupName || synced.groupName });
-    if (isStudyGroupViewVisible()) renderStudyGroup();
-  } catch (error) {
-    lastStudyGroupSyncError = error.message;
-    if (!silent) showToast(error.message, 'error');
-    if (isStudyGroupViewVisible()) renderStudyGroup();
-  }
+  listenToStudyGroupMessages(group);
+  if (!silent) showToast('Realtime chat synced', 'success');
+  if (isStudyGroupViewVisible()) renderStudyGroup();
 }
 
 function startStudyGroupPolling() {
@@ -1690,45 +1699,13 @@ function startStudyGroupPolling() {
   const group = ScholarDB.getStudyGroup();
   if (!group?.code) return;
   setStudyGroupActivity();
-  refreshStudyGroupMessages().catch(() => {});
+  listenToStudyGroupMessages(group);
 }
 
 async function refreshStudyGroupMessages(silent = true) {
   const group = ScholarDB.getStudyGroup();
   if (!group?.code) return;
-  if (studyGroupPollInFlight) {
-    scheduleStudyGroupPolling();
-    return;
-  }
-  studyGroupPollInFlight = true;
-  try {
-    const synced = await studyGroupRequest('/api/group/' + encodeURIComponent(group.code));
-    const remoteMessages = Array.isArray(synced.messages) ? synced.messages : [];
-    const latestGroup = ScholarDB.getStudyGroup();
-    const beforeSignature = messageSignature(latestGroup?.messages || []);
-    const mergedMessages = mergeStudyGroupMessages(latestGroup?.messages || [], remoteMessages);
-    const afterSignature = messageSignature(mergedMessages);
-    if (afterSignature !== beforeSignature) {
-      const next = updateStudyGroupMessages(mergedMessages);
-      if (next && isStudyGroupViewVisible()) renderGroupChatMessages();
-      setStudyGroupActivity();
-    }
-    // Also sync members, notes, files
-    if (synced.members || synced.sharedNotes || synced.sharedFiles) {
-      const current = ScholarDB.getStudyGroup();
-      if (current) {
-        const updated = { ...current, members: synced.members || current.members, sharedNotes: synced.sharedNotes || current.sharedNotes, sharedFiles: synced.sharedFiles || current.sharedFiles, groupName: synced.groupName || current.groupName, lastSynced: Date.now() };
-        ScholarDB.setStudyGroup(updated);
-      }
-    }
-    lastStudyGroupSyncError = '';
-  } catch (error) {
-    lastStudyGroupSyncError = error.message;
-    if (!silent) showToast(error.message, 'error');
-  } finally {
-    studyGroupPollInFlight = false;
-    scheduleStudyGroupPolling();
-  }
+  listenToStudyGroupMessages(group);
 }
 
 function downloadSharedFile(id) {
@@ -2016,27 +1993,19 @@ async function shareFileToGroup(id) {
     const sub = ScholarDB.getSubjectById(f.subjectId);
     const member = getLocalMember();
     const base64 = String(f.data || '').includes(',') ? String(f.data).split(',')[1] : String(f.data || '');
-    showToast('Sharing file to group...', 'info');
-    try {
-      const synced = await studyGroupRequest('/api/group/' + encodeURIComponent(group.code) + '/share-file', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: 'file-' + id + '-' + member.deviceId,
-          name: f.name,
-          type: f.type,
-          subject: sub ? sub.name : 'General',
-          base64,
-          size: f.size,
-          sharerName: member.name
-        })
-      });
-      if (synced.group) saveSyncedGroup({ ...synced.group, groupName: group.groupName });
-      if (currentPage === 'studygroup') renderStudyGroup();
-      showToast('File shared to group', 'success');
-    } catch (error) {
-      lastStudyGroupSyncError = error.message;
-      showToast(error.message, 'error');
-    }
+    const sharedFile = {
+      id: 'file-' + id + '-' + member.deviceId,
+      name: f.name,
+      type: f.type,
+      subject: sub ? sub.name : 'General',
+      base64,
+      size: f.size,
+      sharerName: member.name,
+      sharedAt: Date.now()
+    };
+    saveSyncedGroup({ ...group, sharedFiles: [...(group.sharedFiles || []).filter(file => file.id !== sharedFile.id), sharedFile] });
+    if (currentPage === 'studygroup') renderStudyGroup();
+    showToast('File shared to group', 'success');
   };
 }
 
@@ -2358,7 +2327,7 @@ function setupPWA() {
       refreshing = true;
       window.location.reload();
     });
-    navigator.serviceWorker.register('service-worker.js?v=7')
+    navigator.serviceWorker.register('service-worker.js?v=8')
       .then(r => {
         console.log('SW Registered', r.scope);
         watchRegistrationForUpdates(r);

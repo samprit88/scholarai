@@ -1,7 +1,9 @@
-const CACHE_NAME = 'scholarai-v7';
+const CACHE_NAME = 'scholarai-v8';
 const APP_ASSETS = [
   './',
   'index.html',
+  'login.html',
+  'firebase-config.js',
   'styles.css',
   'db.js',
   'aria.js',
