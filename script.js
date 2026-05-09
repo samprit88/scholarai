@@ -20,6 +20,7 @@ let studyGroupLastActivityAt = Date.now();
 let lastStudyGroupSyncError = '';
 let smartCalMonth, smartCalYear, smartCalendarSelectedDate;
 let smartCalendarTimers = [];
+let studyGroupActiveTab = 'group';
 const STUDY_GROUP_API_BASE = 'https://scholarai-api.onrender.com';
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
@@ -1442,17 +1443,39 @@ function updateStudyGroupNavLabel() {
   label.textContent = 'Study Groups';
 }
 
+function setStudyGroupTab(tab) {
+  studyGroupActiveTab = tab === 'calendar' ? 'calendar' : 'group';
+  renderStudyGroup();
+}
+
+function renderStudyGroupTabs() {
+  return '<div class="study-groups-tabs" role="tablist" aria-label="Study Groups workspace">' +
+    '<button class="' + (studyGroupActiveTab === 'group' ? 'active' : '') + '" type="button" role="tab" aria-selected="' + (studyGroupActiveTab === 'group') + '" onclick="setStudyGroupTab(\'group\')"><span class="material-symbols-outlined">groups</span> Study Group</button>' +
+    '<button class="' + (studyGroupActiveTab === 'calendar' ? 'active' : '') + '" type="button" role="tab" aria-selected="' + (studyGroupActiveTab === 'calendar') + '" onclick="setStudyGroupTab(\'calendar\')"><span class="material-symbols-outlined">calendar_month</span> Calendar</button>' +
+  '</div>';
+}
+
 function renderStudyGroup() {
   const group = ScholarDB.getStudyGroup();
   const c = document.getElementById('group-content');
   if (!c) return;
   updateStudyGroupNavLabel();
+
+  const groupTitle = group?.groupName ? escapeHtml(group.groupName) : 'Study Groups';
+  const headerAction = group && studyGroupActiveTab === 'group' ? '<button class="btn btn-sm btn-outline" onclick="refreshStudyGroup(false)"><span class="material-symbols-outlined" style="font-size:16px">sync</span> Sync</button>' : '';
+  const header = '<div class="study-group-header"><div><p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Study Groups</p><h1 class="heading" style="font-size:24px">' + groupTitle + '</h1></div>' + headerAction + '</div>' + renderStudyGroupTabs();
+
+  if (studyGroupActiveTab === 'calendar') {
+    c.innerHTML = header + '<div class="study-workspace-panel study-calendar-panel">' + renderSmartCalendarSection() + '</div>';
+    requestAnimationFrame(renderSmartCalendar);
+    return;
+  }
+
   if (!group) {
-    c.innerHTML = '<h1 class="heading" style="font-size:24px;margin-bottom:16px">Study Groups</h1>' +
+    c.innerHTML = header + '<div class="study-workspace-panel">' +
       '<div class="empty-state"><span class="material-symbols-outlined">group_add</span><p>No study group yet</p><p class="text-xs text-muted mt-sm">Create or join a group to share notes, files, and chat in real-time.</p></div>' +
       '<div class="grid-2 mt-md"><button class="btn btn-primary" onclick="createStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">add</span> Create Group</button><button class="btn btn-outline" onclick="joinStudyGroup()"><span class="material-symbols-outlined" style="font-size:18px">login</span> Join Group</button></div>' +
-      renderSmartCalendarSection();
-    requestAnimationFrame(renderSmartCalendar);
+      '</div>';
     return;
   }
 
@@ -1465,8 +1488,7 @@ function renderStudyGroup() {
   const syncText = group.lastSynced ? 'Synced ' + new Date(group.lastSynced).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sync pending';
   const syncStatus = lastStudyGroupSyncError ? '<p class="text-xs mt-sm" style="color:var(--color-danger)">Sync issue: ' + escapeHtml(lastStudyGroupSyncError) + '</p>' : '<p class="text-xs text-muted mt-sm">' + syncText + '</p>';
   
-  const groupTitle = group.groupName ? escapeHtml(group.groupName) : 'Study Groups';
-  c.innerHTML = '<div class="study-group-header"><div><p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Study Groups</p><h1 class="heading" style="font-size:24px">' + groupTitle + '</h1></div><button class="btn btn-sm btn-outline" onclick="refreshStudyGroup(false)"><span class="material-symbols-outlined" style="font-size:16px">sync</span> Sync</button></div>' +
+  c.innerHTML = header + '<div class="study-workspace-panel">' +
     '<div class="card card-dark group-code-card"><p class="text-xs" style="color:var(--color-gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">Group Code</p>' +
     '<div class="group-code">' + escapeHtml(group.code) + '</div>' +
     '<div class="flex-row gap-sm mt-lg" style="justify-content:center"><button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText(\'' + group.code + '\');showToast(\'Code copied!\',\'success\')"><span class="material-symbols-outlined" style="font-size:16px">content_copy</span> Copy</button>' +
@@ -1474,14 +1496,11 @@ function renderStudyGroup() {
     syncStatus +
     '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.name || 'Scholar') + '">' + escapeHtml(getInitials(m.name || 'Scholar')) + '</div><span>' + escapeHtml(m.name || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Group Chat</h3><div class="group-chat-panel"><div id="group-chat-messages" class="group-chat-messages">' + renderGroupMessages(messages) + '</div><div class="group-chat-input-row"><textarea id="group-chat-input" class="group-chat-input" placeholder="Type a message..." rows="2"></textarea><button class="btn btn-primary btn-pill group-chat-send" onclick="sendGroupMessage()">Send</button></div></div>' +
-    renderSmartCalendarSection() +
     '<h3 class="section-title mt-lg mb-sm">Shared Notes</h3><div class="space-y">' + renderSharedNotes(sharedNotes) + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Files</h3><div class="space-y">' + renderSharedFiles(sharedFiles) + '</div>' +
-    '<button class="btn btn-danger btn-sm mt-lg" style="width:100%" onclick="leaveStudyGroup()">Leave Group</button>';
-  requestAnimationFrame(() => {
-    scrollGroupChatToBottom(false);
-    renderSmartCalendar();
-  });
+    '<button class="btn btn-danger btn-sm mt-lg" style="width:100%" onclick="leaveStudyGroup()">Leave Group</button>' +
+    '</div>';
+  requestAnimationFrame(() => scrollGroupChatToBottom(false));
 }
 
 function renderGroupMessages(messages) {
@@ -2339,7 +2358,7 @@ function setupPWA() {
       refreshing = true;
       window.location.reload();
     });
-    navigator.serviceWorker.register('service-worker.js?v=6')
+    navigator.serviceWorker.register('service-worker.js?v=7')
       .then(r => {
         console.log('SW Registered', r.scope);
         watchRegistrationForUpdates(r);
