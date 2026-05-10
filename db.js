@@ -1,6 +1,6 @@
 /**
  * ScholarDB — Central Data Architecture
- * Manages all localStorage stores for ScholarAI
+ * Manages ScholarAI local stores plus Firestore-backed cloud stores
  */
 const ScholarDB = (() => {
     const STORES = ['subjects', 'notes', 'assignments', 'timetable', 'events', 'smartCalendarEvents', 'groupMembers', 'settings', 'studyGroup', 'notifications'];
@@ -110,48 +110,19 @@ const ScholarDB = (() => {
         if (!cloudUser || !getFirestore()) return;
 
         const base = getUserBase();
-        await migrateLocalCloudData(base, cloudUser.uid);
         cloudUnsubs.push(base.collection('assignments').onSnapshot(snapshot => {
             cloudCache.assignments = snapshot.docs.map(doc => normalizeCloudItem('assignments', doc.id, doc.data()));
             refreshVisiblePage();
-        }));
+        }, () => {}));
         cloudUnsubs.push(base.collection('notes').onSnapshot(snapshot => {
             cloudCache.notes = snapshot.docs.map(doc => normalizeCloudItem('notes', doc.id, doc.data()));
             refreshVisiblePage();
-        }));
+        }, () => {}));
         cloudUnsubs.push(base.collection('timetable').doc('weeklySchedule').onSnapshot(doc => {
             const data = doc.exists ? doc.data() : {};
             cloudCache.timetable = Array.isArray(data.items) ? data.items : [];
             refreshVisiblePage();
-        }));
-    }
-
-    async function migrateLocalCloudData(base, userId) {
-        const marker = DB_PREFIX + 'firebase_migrated_' + userId;
-        if (localStorage.getItem(marker) === 'true') return;
-        const parseLocal = store => {
-            try {
-                const raw = localStorage.getItem(DB_PREFIX + store);
-                return raw ? JSON.parse(raw) : [];
-            } catch {
-                return [];
-            }
-        };
-        const batch = getFirestore().batch();
-        parseLocal('assignments').forEach(item => {
-            const normalized = normalizeAssignment({ ...item, id: item.id || uid() });
-            batch.set(base.collection('assignments').doc(normalized.id), toFirestoreData('assignments', normalized), { merge: true });
-        });
-        parseLocal('notes').forEach(item => {
-            const normalized = normalizeNote({ ...item, id: item.id || uid() });
-            batch.set(base.collection('notes').doc(normalized.id), toFirestoreData('notes', normalized), { merge: true });
-        });
-        const timetable = parseLocal('timetable');
-        if (Array.isArray(timetable) && timetable.length) {
-            batch.set(base.collection('timetable').doc('weeklySchedule'), { items: timetable, updatedAt: Date.now() }, { merge: true });
-        }
-        await batch.commit().catch(() => {});
-        localStorage.setItem(marker, 'true');
+        }, () => {}));
     }
 
     async function writeCloudStore(store) {
@@ -161,7 +132,7 @@ const ScholarDB = (() => {
             await base.collection('timetable').doc('weeklySchedule').set({
                 items: cloudCache.timetable || [],
                 updatedAt: Date.now()
-            }, { merge: true });
+            }, { merge: true }).catch(() => {});
         }
     }
 
@@ -248,8 +219,8 @@ const ScholarDB = (() => {
         items.push(normalized);
         set(store, items);
         const base = getUserBase();
-        if (base && store === 'assignments') base.collection('assignments').doc(normalized.id).set(toFirestoreData(store, normalized), { merge: true });
-        else if (base && store === 'notes') base.collection('notes').doc(normalized.id).set(toFirestoreData(store, normalized), { merge: true });
+        if (base && store === 'assignments') base.collection('assignments').doc(normalized.id).set(toFirestoreData(store, normalized), { merge: true }).catch(() => {});
+        else if (base && store === 'notes') base.collection('notes').doc(normalized.id).set(toFirestoreData(store, normalized), { merge: true }).catch(() => {});
         else if (base && store === 'timetable') writeCloudStore('timetable');
         return normalized;
     }
@@ -261,8 +232,8 @@ const ScholarDB = (() => {
         items[idx] = store === 'assignments' ? normalizeAssignment({ ...items[idx], ...updates }) : store === 'notes' ? normalizeNote({ ...items[idx], ...updates }) : { ...items[idx], ...updates };
         set(store, items);
         const base = getUserBase();
-        if (base && store === 'assignments') base.collection('assignments').doc(id).set(toFirestoreData(store, items[idx]), { merge: true });
-        else if (base && store === 'notes') base.collection('notes').doc(id).set(toFirestoreData(store, items[idx]), { merge: true });
+        if (base && store === 'assignments') base.collection('assignments').doc(id).set(toFirestoreData(store, items[idx]), { merge: true }).catch(() => {});
+        else if (base && store === 'notes') base.collection('notes').doc(id).set(toFirestoreData(store, items[idx]), { merge: true }).catch(() => {});
         else if (base && store === 'timetable') writeCloudStore('timetable');
         return items[idx];
     }
@@ -271,8 +242,8 @@ const ScholarDB = (() => {
         const items = getAll(store).filter(i => i.id !== id);
         set(store, items);
         const base = getUserBase();
-        if (base && store === 'assignments') base.collection('assignments').doc(id).delete();
-        else if (base && store === 'notes') base.collection('notes').doc(id).delete();
+        if (base && store === 'assignments') base.collection('assignments').doc(id).delete().catch(() => {});
+        else if (base && store === 'notes') base.collection('notes').doc(id).delete().catch(() => {});
         else if (base && store === 'timetable') writeCloudStore('timetable');
     }
 

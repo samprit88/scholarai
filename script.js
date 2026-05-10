@@ -23,7 +23,9 @@ let studyGroupActiveTab = 'group';
 let studyGroupMessagesRef = null;
 let studyGroupMembersRef = null;
 let profileDisplayNameUnsub = null;
+let profilePhotoUnsub = null;
 let customProfileDisplayName = '';
+let customProfilePhotoURL = '';
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
 const SMART_CALENDAR_TIMER_MAX = 2147483647;
@@ -72,7 +74,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initThemeToggle();
   ScholarDB.init();
   await ScholarDB.initCloud(user);
-  startProfileDisplayNameSync(user);
+  await startProfileDisplayNameSync(user);
+  await startProfilePhotoSync(user);
   initFileDB();
   const now = new Date();
   calMonth = now.getMonth();
@@ -299,12 +302,13 @@ function getLocalMember() {
   const user = window.ScholarFirebase?.auth?.currentUser;
   const uid = user?.uid || getDeviceId();
   const displayName = customProfileDisplayName || settings.name || user?.displayName || 'Scholar';
+  const photoURL = getActiveProfilePhotoURL();
   return {
     deviceId: uid,
     uid,
     displayName,
     name: displayName,
-    photoURL: user?.photoURL || '',
+    photoURL,
     avatarColor: settings.avatarColor || '#7B3FA0'
   };
 }
@@ -316,6 +320,15 @@ function getFirebaseAuthUser() {
 function getUserProfileDisplayNameDoc(uid) {
   const db = window.ScholarFirebase?.firestore;
   return db && uid ? db.collection('users').doc(uid).collection('profile').doc('displayName') : null;
+}
+
+function getUserProfilePhotoDoc(uid) {
+  const db = window.ScholarFirebase?.firestore;
+  return db && uid ? db.collection('users').doc(uid).collection('profile').doc('photoURL') : null;
+}
+
+function getActiveProfilePhotoURL(user = getFirebaseAuthUser()) {
+  return customProfilePhotoURL || user?.photoURL || '';
 }
 
 async function fetchCustomProfileDisplayName(user = getFirebaseAuthUser()) {
@@ -355,6 +368,35 @@ async function saveCustomProfileDisplayName(name) {
   ]).catch(() => {});
 }
 
+async function fetchCustomProfilePhotoURL(user = getFirebaseAuthUser()) {
+  const db = window.ScholarFirebase?.firestore;
+  if (!db || !user?.uid) return user?.photoURL || '';
+  try {
+    const [profilePhotoDoc, userDoc] = await Promise.all([
+      getUserProfilePhotoDoc(user.uid)?.get(),
+      db.collection('users').doc(user.uid).get()
+    ]);
+    const profilePhoto = profilePhotoDoc?.exists ? String(profilePhotoDoc.data()?.photoURL || '').trim() : '';
+    const userData = userDoc?.exists ? userDoc.data() : {};
+    const nestedPhoto = String(userData?.profile?.photoURL || '').trim();
+    return profilePhoto || nestedPhoto || user.photoURL || '';
+  } catch (error) {
+    return user.photoURL || '';
+  }
+}
+
+async function saveCustomProfilePhotoURL(photoURL) {
+  const user = getFirebaseAuthUser();
+  if (!user?.uid) return;
+  const db = window.ScholarFirebase?.firestore;
+  if (!db) return;
+  const cleanPhotoURL = String(photoURL || '').trim();
+  await Promise.all([
+    getUserProfilePhotoDoc(user.uid).set({ photoURL: cleanPhotoURL, updatedAt: Date.now() }, { merge: true }),
+    db.collection('users').doc(user.uid).set({ profile: { photoURL: cleanPhotoURL }, updatedAt: Date.now() }, { merge: true })
+  ]);
+}
+
 function applyProfileDisplayName(name) {
   const user = getFirebaseAuthUser();
   const cleanName = String(name || '').trim();
@@ -366,6 +408,23 @@ function applyProfileDisplayName(name) {
     if (currentPage === 'profile') renderProfile();
   }
   renderFirebaseUserNav();
+  syncCurrentStudyGroupMemberName();
+}
+
+function applyProfilePhotoURL(photoURL) {
+  const user = getFirebaseAuthUser();
+  const cleanPhotoURL = String(photoURL || '').trim();
+  customProfilePhotoURL = cleanPhotoURL && cleanPhotoURL !== user?.photoURL ? cleanPhotoURL : '';
+  const settings = ScholarDB.getSettings();
+  const activePhotoURL = getActiveProfilePhotoURL(user);
+  if (settings.avatarPhoto !== activePhotoURL) {
+    ScholarDB.updateSettings({ ...settings, avatarPhoto: activePhotoURL });
+  }
+  renderNavProfileIcon();
+  renderFirebaseUserNav();
+  if (currentPage === 'profile') renderProfile();
+  if (currentPage === 'settings') renderSettings();
+  if (isStudyGroupViewVisible()) renderStudyGroup();
   syncCurrentStudyGroupMemberName();
 }
 
@@ -381,7 +440,23 @@ async function startProfileDisplayNameSync(user = getFirebaseAuthUser()) {
   profileDisplayNameUnsub = ref.onSnapshot(doc => {
     const name = doc.exists ? doc.data()?.displayName : '';
     if (name) applyProfileDisplayName(name);
-  });
+  }, () => {});
+}
+
+async function startProfilePhotoSync(user = getFirebaseAuthUser()) {
+  if (profilePhotoUnsub) {
+    try { profilePhotoUnsub(); } catch (e) {}
+    profilePhotoUnsub = null;
+  }
+  if (!user?.uid) return;
+  const fetchedPhotoURL = await fetchCustomProfilePhotoURL(user);
+  applyProfilePhotoURL(fetchedPhotoURL);
+  const ref = getUserProfilePhotoDoc(user.uid);
+  if (!ref) return;
+  profilePhotoUnsub = ref.onSnapshot(doc => {
+    const photoURL = doc.exists ? doc.data()?.photoURL : '';
+    applyProfilePhotoURL(photoURL || user.photoURL || '');
+  }, () => {});
 }
 
 async function syncCurrentStudyGroupMemberName() {
@@ -407,7 +482,7 @@ async function saveCurrentUserToStudyGroupMembers(groupCode) {
   if (displayName) applyProfileDisplayName(displayName);
   await membersRef.child(user.uid).set({
     displayName: displayName || user.displayName || 'Scholar',
-    photoURL: user.photoURL || null,
+    photoURL: getActiveProfilePhotoURL(user) || null,
     uid: user.uid
   });
 }
@@ -485,12 +560,12 @@ function setStudyGroupActivity(timestamp = Date.now()) {
 }
 
 function getStudyGroupMessagesRef(groupCode) {
-  const db = window.ScholarFirebase?.database || (window.firebase ? firebase.database() : null);
+  const db = window.ScholarFirebase?.database || (window.firebase ? window.firebase.database() : null);
   return db && groupCode ? db.ref('studyGroups/' + String(groupCode).toUpperCase() + '/messages') : null;
 }
 
 function getStudyGroupMembersRef(groupCode) {
-  const db = window.ScholarFirebase?.database || (window.firebase ? firebase.database() : null);
+  const db = window.ScholarFirebase?.database || (window.firebase ? window.firebase.database() : null);
   return db && groupCode ? db.ref('studyGroups/' + String(groupCode).toUpperCase() + '/members') : null;
 }
 
@@ -544,6 +619,9 @@ function listenToStudyGroupMembers(group) {
       ScholarDB.setStudyGroup({ ...current, members });
       if (isStudyGroupViewVisible()) renderStudyGroup();
     }
+  }, error => {
+    lastStudyGroupSyncError = error.message;
+    if (isStudyGroupViewVisible()) renderStudyGroup();
   });
 }
 
@@ -612,8 +690,9 @@ function ensureProfileJoinedAt(settings) {
 }
 
 function renderAvatarHtml(settings, sizeClass) {
-  if (settings.avatarPhoto) {
-    return '<img class="' + sizeClass + '-img" src="' + escapeHtml(settings.avatarPhoto) + '" alt="Profile photo">';
+  const photoURL = settings.avatarPhoto || getActiveProfilePhotoURL();
+  if (photoURL) {
+    return '<img class="' + sizeClass + '-img" src="' + escapeHtml(photoURL) + '" alt="Profile photo">';
   }
   return '<span style="color:' + escapeHtml(settings.avatarColor || '#7B3FA0') + '">' + escapeHtml(getInitials(settings.name)) + '</span>';
 }
@@ -622,10 +701,7 @@ function renderNavProfileIcon() {
   const btn = document.getElementById('nav-profile-btn');
   if (!btn) return;
   const settings = ScholarDB.getSettings();
-  const user = window.ScholarFirebase?.auth?.currentUser;
-  btn.innerHTML = user?.photoURL
-    ? '<img class="nav-profile-img" src="' + escapeHtml(user.photoURL) + '" alt="Google profile photo">'
-    : renderAvatarHtml(settings, 'nav-profile');
+  btn.innerHTML = renderAvatarHtml({ ...settings, avatarPhoto: getActiveProfilePhotoURL() }, 'nav-profile');
 }
 
 function openProfilePage() {
@@ -705,20 +781,47 @@ function closeProfilePhotoSheet() {
   document.getElementById('avatar-choice-panel')?.classList.add('hidden');
 }
 
-function handleProfilePhotoUpload(event) {
+function readProfilePhotoAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read image'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.onload = () => {
+        const maxSize = 320;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleProfilePhotoUpload(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
+  try {
+    const photoURL = await readProfilePhotoAsDataURL(file);
+    await saveCustomProfilePhotoURL(photoURL);
     const settings = ScholarDB.getSettings();
-    settings.avatarPhoto = e.target.result;
+    settings.avatarPhoto = photoURL;
     ScholarDB.updateSettings(settings);
-    renderProfile();
-    renderNavProfileIcon();
+    customProfilePhotoURL = photoURL;
+    applyProfilePhotoURL(photoURL);
     closeProfilePhotoSheet();
     showToast('Photo updated', 'success');
-  };
-  reader.readAsDataURL(file);
+  } catch (error) {
+    showToast(error.message || 'Photo update failed', 'error');
+  } finally {
+    event.target.value = '';
+  }
 }
 
 function showAvatarChoices() {
@@ -729,13 +832,14 @@ function showAvatarChoices() {
   panel.classList.remove('hidden');
 }
 
-function chooseProfileAvatar(color) {
+async function chooseProfileAvatar(color) {
   const settings = ScholarDB.getSettings();
   settings.avatarColor = color;
   settings.avatarPhoto = '';
   ScholarDB.updateSettings(settings);
-  renderProfile();
-  renderNavProfileIcon();
+  customProfilePhotoURL = '';
+  await saveCustomProfilePhotoURL('').catch(() => {});
+  applyProfilePhotoURL('');
   closeProfilePhotoSheet();
   showToast('Avatar updated', 'success');
 }
@@ -1798,7 +1902,7 @@ async function sendGroupMessage() {
       displayName: member.displayName,
       photoURL: member.photoURL || '',
       text,
-      timestamp: firebase.database.ServerValue.TIMESTAMP
+      timestamp: window.firebase.database.ServerValue.TIMESTAMP
     });
   } catch (error) {
     lastStudyGroupSyncError = error.message;
@@ -2237,9 +2341,10 @@ function renderSettings() {
   const user = getFirebaseAuthUser();
   const profileCard = document.getElementById('settings-profile-card');
   if (profileCard) {
+    const displayName = customProfileDisplayName || s.name || user?.displayName || 'Scholar';
     const profile = {
-      name: user?.displayName || s.name || 'Scholar',
-      avatarPhoto: user?.photoURL || s.avatarPhoto || '',
+      name: displayName,
+      avatarPhoto: getActiveProfilePhotoURL(user),
       avatarColor: s.avatarColor || '#7B3FA0'
     };
     profileCard.innerHTML =
