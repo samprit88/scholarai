@@ -38,6 +38,9 @@ const ARIA = (() => {
                 base.collection('timetable').doc('weeklySchedule').get(),
                 base.collection('notes').get()
             ]);
+            const displayName = typeof fetchCustomProfileDisplayName === 'function'
+                ? await fetchCustomProfileDisplayName(user)
+                : user.displayName;
 
             const assignments = assignmentSnap.docs.map(doc => {
                 const a = doc.data();
@@ -56,7 +59,7 @@ const ARIA = (() => {
             }).join('\n') || 'None';
 
             return capContext(`You are ARIA, the AI study assistant inside ScholarAI. Here is this student's current data:
-STUDENT NAME: ${user.displayName || 'Scholar'}
+STUDENT NAME: ${displayName || user.displayName || 'Scholar'}
 TODAY: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 ASSIGNMENTS:
 ${assignments}

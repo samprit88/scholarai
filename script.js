@@ -22,6 +22,8 @@ let smartCalendarTimers = [];
 let studyGroupActiveTab = 'group';
 let studyGroupMessagesRef = null;
 let studyGroupMembersRef = null;
+let profileDisplayNameUnsub = null;
+let customProfileDisplayName = '';
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
 const SMART_CALENDAR_TIMER_MAX = 2147483647;
@@ -70,6 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initThemeToggle();
   ScholarDB.init();
   await ScholarDB.initCloud(user);
+  startProfileDisplayNameSync(user);
   initFileDB();
   const now = new Date();
   calMonth = now.getMonth();
@@ -143,15 +146,68 @@ function toggleTheme() {
 // NAVIGATION
 // ══════════════════════════════════════════════════════════
 function setupKeepAlivePing() {
-  const ping = () => fetch('https://scholarai-api.onrender.com/health', { method: 'GET', cache: 'no-store' }).catch(() => {});
-  ping();
+  let wakeBannerDismissed = false;
+
+  const ensureWakeBannerStyles = () => {
+    if (document.getElementById('aria-wake-banner-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'aria-wake-banner-styles';
+    style.textContent = `
+      .aria-wake-banner{position:fixed;top:0;left:0;right:0;z-index:450;background:#2D1B4E;color:#FAF3E8;font-family:'Plus Jakarta Sans',var(--font-body,sans-serif);box-shadow:0 10px 30px -20px rgba(45,27,78,.65);opacity:0;transform:translateY(-100%);transition:opacity .3s ease,transform .3s ease;pointer-events:none}
+      .aria-wake-banner.active{opacity:1;transform:translateY(0)}
+      .aria-wake-banner.dismissed{opacity:0;transform:translateY(-100%)}
+      .aria-wake-inner{min-height:46px;display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 14px;padding-top:calc(9px + env(safe-area-inset-top));font-size:13px;font-weight:700;line-height:1.35}
+      .aria-wake-dot{width:8px;height:8px;border-radius:50%;background:#C4853A;box-shadow:0 0 0 0 rgba(196,133,58,.65);animation:ariaWakePulse 1.2s ease-in-out infinite;flex:0 0 auto}
+      .aria-wake-dismiss{position:absolute;right:10px;top:calc(6px + env(safe-area-inset-top));width:32px;height:32px;border:0;border-radius:50%;background:rgba(250,243,232,.12);color:#FAF3E8;font:700 20px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;pointer-events:auto}
+      @keyframes ariaWakePulse{0%,100%{opacity:.55;transform:scale(.86);box-shadow:0 0 0 0 rgba(196,133,58,.45)}50%{opacity:1;transform:scale(1);box-shadow:0 0 0 7px rgba(196,133,58,0)}}
+    `;
+    document.head.appendChild(style);
+  };
+
+  const showWakeBanner = () => {
+    if (wakeBannerDismissed || document.getElementById('aria-wake-banner')) return;
+    ensureWakeBannerStyles();
+    const banner = document.createElement('div');
+    banner.id = 'aria-wake-banner';
+    banner.className = 'aria-wake-banner';
+    banner.setAttribute('role', 'status');
+    banner.setAttribute('aria-live', 'polite');
+    banner.innerHTML = '<div class="aria-wake-inner"><span class="aria-wake-dot" aria-hidden="true"></span><span>ARIA is waking up… this may take a moment ☕</span><button class="aria-wake-dismiss" type="button" aria-label="Dismiss ARIA status">&times;</button></div>';
+    document.body.prepend(banner);
+    banner.querySelector('.aria-wake-dismiss')?.addEventListener('click', () => {
+      wakeBannerDismissed = true;
+      dismissWakeBanner();
+    });
+    requestAnimationFrame(() => banner.classList.add('active'));
+  };
+
+  const dismissWakeBanner = () => {
+    const banner = document.getElementById('aria-wake-banner');
+    if (!banner) return;
+    banner.classList.remove('active');
+    banner.classList.add('dismissed');
+    setTimeout(() => banner.remove(), 300);
+  };
+
+  const ping = (showSlowBanner = false) => {
+    let slowTimer = null;
+    if (showSlowBanner) slowTimer = setTimeout(showWakeBanner, 3000);
+    return fetch('https://scholarai-api.onrender.com/health', { method: 'GET', cache: 'no-store' })
+      .then(() => dismissWakeBanner())
+      .catch(() => {})
+      .finally(() => {
+        if (slowTimer) clearTimeout(slowTimer);
+      });
+  };
+
+  ping(true);
   setInterval(ping, 4 * 60 * 1000);
 }
 
 function renderFirebaseUserNav() {
   const user = window.ScholarFirebase?.auth?.currentUser;
   const nameEl = document.getElementById('nav-user-name');
-  if (nameEl) nameEl.textContent = user?.displayName || '';
+  if (nameEl) nameEl.textContent = customProfileDisplayName || user?.displayName || '';
 }
 
 async function signOutUser() {
@@ -242,11 +298,12 @@ function getLocalMember() {
   const settings = ScholarDB.getSettings();
   const user = window.ScholarFirebase?.auth?.currentUser;
   const uid = user?.uid || getDeviceId();
+  const displayName = customProfileDisplayName || settings.name || user?.displayName || 'Scholar';
   return {
     deviceId: uid,
     uid,
-    displayName: user?.displayName || settings.name || 'Scholar',
-    name: user?.displayName || settings.name || 'Scholar',
+    displayName,
+    name: displayName,
     photoURL: user?.photoURL || '',
     avatarColor: settings.avatarColor || '#7B3FA0'
   };
@@ -256,13 +313,100 @@ function getFirebaseAuthUser() {
   return window.ScholarFirebase?.auth?.currentUser || (window.firebase ? window.firebase.auth().currentUser : null);
 }
 
+function getUserProfileDisplayNameDoc(uid) {
+  const db = window.ScholarFirebase?.firestore;
+  return db && uid ? db.collection('users').doc(uid).collection('profile').doc('displayName') : null;
+}
+
+async function fetchCustomProfileDisplayName(user = getFirebaseAuthUser()) {
+  const db = window.ScholarFirebase?.firestore;
+  if (!db || !user?.uid) return user?.displayName || '';
+  try {
+    const [profileNameDoc, userDoc] = await Promise.all([
+      getUserProfileDisplayNameDoc(user.uid)?.get(),
+      db.collection('users').doc(user.uid).get()
+    ]);
+    const profileName = profileNameDoc?.exists ? String(profileNameDoc.data()?.displayName || '').trim() : '';
+    const userData = userDoc?.exists ? userDoc.data() : {};
+    let localName = '';
+    try {
+      localName = String(JSON.parse(localStorage.getItem('scholarai_settings') || '{}')?.name || '').trim();
+    } catch (e) {}
+    if (localName === 'Scholar') localName = '';
+    return profileName || String(userData?.profile?.displayName || userData?.displayName || localName || user.displayName || '').trim();
+  } catch (error) {
+    try {
+      const localName = String(JSON.parse(localStorage.getItem('scholarai_settings') || '{}')?.name || '').trim();
+      if (localName && localName !== 'Scholar') return localName;
+    } catch (e) {}
+    return user.displayName || '';
+  }
+}
+
+async function saveCustomProfileDisplayName(name) {
+  const user = getFirebaseAuthUser();
+  const cleanName = String(name || '').trim();
+  if (!user?.uid || !cleanName) return;
+  const db = window.ScholarFirebase?.firestore;
+  if (!db) return;
+  await Promise.all([
+    getUserProfileDisplayNameDoc(user.uid).set({ displayName: cleanName, updatedAt: Date.now() }, { merge: true }),
+    db.collection('users').doc(user.uid).set({ profile: { displayName: cleanName }, displayName: cleanName, updatedAt: Date.now() }, { merge: true })
+  ]).catch(() => {});
+}
+
+function applyProfileDisplayName(name) {
+  const user = getFirebaseAuthUser();
+  const cleanName = String(name || '').trim();
+  customProfileDisplayName = cleanName || user?.displayName || '';
+  const settings = ScholarDB.getSettings();
+  if (cleanName && settings.name !== cleanName) {
+    ScholarDB.updateSettings({ ...settings, name: cleanName });
+    renderNavProfileIcon();
+    if (currentPage === 'profile') renderProfile();
+  }
+  renderFirebaseUserNav();
+  syncCurrentStudyGroupMemberName();
+}
+
+async function startProfileDisplayNameSync(user = getFirebaseAuthUser()) {
+  if (profileDisplayNameUnsub) {
+    try { profileDisplayNameUnsub(); } catch (e) {}
+    profileDisplayNameUnsub = null;
+  }
+  if (!user?.uid) return;
+  applyProfileDisplayName(await fetchCustomProfileDisplayName(user));
+  const ref = getUserProfileDisplayNameDoc(user.uid);
+  if (!ref) return;
+  profileDisplayNameUnsub = ref.onSnapshot(doc => {
+    const name = doc.exists ? doc.data()?.displayName : '';
+    if (name) applyProfileDisplayName(name);
+  });
+}
+
+async function syncCurrentStudyGroupMemberName() {
+  const group = ScholarDB.getStudyGroup();
+  const user = getFirebaseAuthUser();
+  if (!group?.code || !user?.uid) return;
+  const ref = getStudyGroupMembersRef(group.code);
+  if (!ref) return;
+  const member = getLocalMember();
+  await ref.child(user.uid).update({
+    displayName: member.displayName,
+    photoURL: member.photoURL || null,
+    uid: user.uid
+  }).catch(() => {});
+}
+
 async function saveCurrentUserToStudyGroupMembers(groupCode) {
   const user = getFirebaseAuthUser();
   if (!groupCode || !user?.uid) throw new Error('Sign in is required to join a study group');
   const membersRef = getStudyGroupMembersRef(groupCode);
   if (!membersRef) throw new Error('Realtime Database is not available');
+  const displayName = await fetchCustomProfileDisplayName(user);
+  if (displayName) applyProfileDisplayName(displayName);
   await membersRef.child(user.uid).set({
-    displayName: user.displayName || 'Scholar',
+    displayName: displayName || user.displayName || 'Scholar',
     photoURL: user.photoURL || null,
     uid: user.uid
   });
@@ -527,7 +671,7 @@ function renderProfile() {
   if (joined) joined.textContent = 'Member since ' + new Date(settings.profileJoinedAt).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-function toggleProfileEdit() {
+async function toggleProfileEdit() {
   const btn = document.getElementById('profile-edit-btn');
   if (!btn) return;
   const isEditing = btn.dataset.editing === 'true';
@@ -538,6 +682,11 @@ function toggleProfileEdit() {
     if (name) settings.name = name;
     if (cls) settings.class = cls;
     ScholarDB.updateSettings(settings);
+    if (name) {
+      customProfileDisplayName = name;
+      await saveCustomProfileDisplayName(name);
+      await syncCurrentStudyGroupMemberName();
+    }
     btn.dataset.editing = 'false';
     showToast('Profile updated', 'success');
   } else {
@@ -1679,6 +1828,8 @@ async function createStudyGroup() {
   const groupName = prompt('Enter a name for your study group (e.g. Warriors, Physics Squad):');
   if (!groupName || !groupName.trim()) return;
   try {
+    const displayName = await fetchCustomProfileDisplayName();
+    if (displayName) applyProfileDisplayName(displayName);
     const member = getLocalMember();
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     const group = {
@@ -1711,6 +1862,8 @@ async function joinStudyGroup() {
   const code = prompt('Enter 6-character group code:');
   if (code && code.trim().length === 6) {
     try {
+      const displayName = await fetchCustomProfileDisplayName();
+      if (displayName) applyProfileDisplayName(displayName);
       const member = getLocalMember();
       const group = {
         code: code.trim().toUpperCase(),
@@ -2274,7 +2427,7 @@ function obRemoveSubject(idx) {
   renderObSubjects();
 }
 
-function finishOnboarding(skip) {
+async function finishOnboarding(skip) {
   if (!skip) {
     if (!document.getElementById('ob-disclaimer').checked) { showToast('Please accept the disclaimer', 'error'); return; }
     const name = document.getElementById('ob-name').value;
@@ -2284,6 +2437,11 @@ function finishOnboarding(skip) {
     if (name) settings.name = name;
     if (cls) settings.class = cls;
     ScholarDB.updateSettings(settings);
+    if (name) {
+      customProfileDisplayName = name.trim();
+      await saveCustomProfileDisplayName(customProfileDisplayName);
+      renderFirebaseUserNav();
+    }
     
     // Replace default subjects if user added custom ones
     if (obSubjects.length >= 3) {

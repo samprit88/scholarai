@@ -33,7 +33,7 @@ app.use(express.static(__dirname));
 // HEALTH CHECK
 // ══════════════════════════════════════════════════════════
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.status(200).json({ status: 'ok' });
 });
 
 // ══════════════════════════════════════════════════════════

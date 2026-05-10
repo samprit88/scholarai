@@ -10,10 +10,14 @@ const firebaseConfig = {
 
 const firebaseApp = firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
 const firebaseAuth = firebase.auth();
-const firebaseFirestore = firebase.firestore();
+const initializeFirestore = firebase.initializeFirestore;
+const persistentLocalCache = firebase.firestore?.persistentLocalCache;
+const firebaseFirestore = initializeFirestore && persistentLocalCache
+  ? initializeFirestore(firebaseApp, {
+      localCache: persistentLocalCache()
+    })
+  : firebase.firestore();
 const firebaseRealtimeDb = firebase.database();
-
-firebaseFirestore.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
 let firebaseAuthResolved = false;
 let firebaseCurrentUser = null;
