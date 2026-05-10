@@ -240,7 +240,8 @@ body.profile-active .main-content{padding-top:16px}
 .study-workspace-panel{animation:fadeUp .24s ease}
 .study-workspace-panel .smart-calendar-section{margin-top:0}
 .group-code-card{text-align:center;padding:30px 20px}
-.member-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--color-on-dark)}
+.member-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--color-on-dark);background:var(--color-accent);overflow:hidden}
+.member-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
 .group-code{font-family:var(--font-heading);font-size:32px;font-weight:700;letter-spacing:6px;color:var(--color-on-dark)}
 .group-members-grid{display:flex;flex-wrap:wrap;gap:14px}
 .member-profile{width:72px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
@@ -359,10 +360,24 @@ body.profile-active .main-content{padding-top:16px}
 .timeline-line{position:absolute;left:5px;top:22px;bottom:-10px;width:2px;background:var(--color-border)}
 .settings-section{margin-bottom:28px}
 .settings-section h3{font-family:var(--font-heading);font-size:16px;margin-bottom:12px;color:var(--color-heading)}
+.settings-profile-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-bg-secondary)}
+.settings-profile-avatar{width:44px;height:44px;border-radius:50%;background:var(--color-bg-card);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:800;color:var(--color-heading)}
+.settings-profile-avatar-img{width:100%;height:100%;object-fit:cover;display:block}
+.settings-profile-card strong{display:block;font-size:14px;color:var(--color-heading)}
+.settings-profile-card span{display:block;margin-top:3px;font-size:12px;color:var(--color-muted)}
 .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--color-border)}
 .toggle{width:44px;height:24px;border-radius:12px;background:var(--color-bg-card);border:1.5px solid var(--color-border);position:relative;cursor:pointer;transition:all .2s}
 .toggle.on{background:var(--color-success);border-color:var(--color-success)}
 .toggle::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--surface);top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .toggle.on::after{transform:translateX(20px)}
 .pwa-banner{position:fixed;bottom:76px;left:12px;right:12px;background:var(--color-dark);color:var(--color-on-dark);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;z-index:80;box-shadow:var(--shadow-lg);display:none}
+.pwa-banner #pwa-install-btn{background:#C4853A!important;color:#FAF3E8!important}
+[data-theme="dark"] h1,[data-theme="dark"] h2,[data-theme="dark"] h3,[data-theme="dark"] h4,[data-theme="dark"] .heading,[data-theme="dark"] .section-title,[data-theme="dark"] .top-bar .logo,[data-theme="dark"] .nav-user-name{color:#FAF3E8}
+[data-theme="dark"] .card,[data-theme="dark"] .modal,[data-theme="dark"] .settings-section,[data-theme="dark"] .share-card,[data-theme="dark"] .settings-profile-card,[data-theme="dark"] .smart-calendar-shell,[data-theme="dark"] .smart-calendar-day-panel,[data-theme="dark"] .group-chat-input-row,[data-theme="dark"] .notif-panel,[data-theme="dark"] .toast{color:#FAF3E8}
+[data-theme="dark"] .input,[data-theme="dark"] .textarea,[data-theme="dark"] .select,[data-theme="dark"] .chat-input,[data-theme="dark"] .group-chat-input{color:#FAF3E8;background:#3D2B5E;border-color:#4D3B6E}
+[data-theme="dark"] .input::placeholder,[data-theme="dark"] .textarea::placeholder,[data-theme="dark"] .chat-input::placeholder,[data-theme="dark"] .group-chat-input::placeholder{color:#BCA9CE}
+[data-theme="dark"] .text-muted,[data-theme="dark"] .form-group label,[data-theme="dark"] .share-preview,[data-theme="dark"] .profile-join-date,[data-theme="dark"] .notif-time,[data-theme="dark"] .group-message-sender{color:#BCA9CE}
+[data-theme="dark"] .toggle-row span,[data-theme="dark"] .member-profile span,[data-theme="dark"] .settings-profile-card strong,[data-theme="dark"] .settings-profile-avatar,[data-theme="dark"] .smart-calendar-event-copy strong,[data-theme="dark"] .profile-subject-card strong,[data-theme="dark"] .profile-class-badge,[data-theme="dark"] .profile-sheet-option{color:#FAF3E8}
+[data-theme="dark"] .btn-primary,[data-theme="dark"] .share-more,[data-theme="dark"] .profile-camera-btn{color:#2D1B4E}
+[data-theme="dark"] .pwa-banner #pwa-install-btn{background:#C4853A!important;color:#FAF3E8!important}
 .hidden{display:none!important}

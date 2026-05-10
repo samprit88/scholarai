@@ -328,33 +328,17 @@
   <h1 class="heading" style="font-size:24px;margin-bottom:20px">Settings</h1>
 
   <div class="settings-section">
-    <h3>Subjects</h3>
-    <div id="set-subjects-list" class="space-y mb-sm"></div>
-    <div class="flex-row gap-sm"><input id="set-new-subject" class="input" placeholder="New subject" style="flex:1"><div class="color-picker-row" id="set-subject-color" style="flex-shrink:0"></div><button class="btn btn-sm btn-secondary" onclick="addSubjectFromSettings()">Add</button></div>
+    <h3>Profile</h3>
+    <div id="settings-profile-card" class="settings-profile-card"></div>
   </div>
 
   <div class="settings-section">
-    <h3>AI Configuration</h3>
+    <h3>App Settings</h3>
     <div class="form-group"><label>AI Status</label><div class="ai-status">AI Status: Connected ✅</div></div>
     <div class="form-group"><label>ARIA Personality</label><select id="set-personality" class="select"><option value="warm">Warm Friend</option><option value="mentor">Academic Mentor</option><option value="strict">Strict Coach</option></select></div>
-  </div>
-
-  <div class="settings-section">
-    <h3>Notifications</h3>
     <div class="toggle-row"><span>Class Reminders</span><div class="toggle on" id="tog-class" onclick="toggleSetting(this,'classReminders')"></div></div>
     <div class="toggle-row"><span>Assignment Reminders</span><div class="toggle on" id="tog-assign" onclick="toggleSetting(this,'assignmentReminders')"></div></div>
     <div class="toggle-row"><span>Weekly Summary</span><div class="toggle on" id="tog-weekly" onclick="toggleSetting(this,'weeklyDigest')"></div></div>
-  </div>
-
-  <div class="settings-section">
-    <h3>Data Management</h3>
-    <div class="grid-2 gap-sm">
-      <button class="btn btn-outline btn-sm" onclick="exportData()"><span class="material-symbols-outlined" style="font-size:16px">download</span> Export</button>
-      <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-file').click()"><span class="material-symbols-outlined" style="font-size:16px">upload</span> Import</button>
-    </div>
-    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-    <button class="btn btn-danger btn-sm mt-md" style="width:100%" onclick="clearAllData()">Clear All Data</button>
-    <p id="storage-display" class="text-xs text-muted mt-sm text-center"></p>
   </div>
 
   <div class="settings-section">
@@ -375,7 +359,11 @@
 
   <div class="text-center mt-lg" style="padding-bottom:20px">
     <p class="heading" style="font-size:14px">ScholarAI v2.0.0</p>
-    <p class="text-xs text-muted">Made with <span class="text-danger">&hearts;</span> for students</p>
+    <p class="text-xs text-muted">Made with ❤️ for students by Samprit Gautam</p>
+  </div>
+</div>
+
+<nav class="bottom-nav" aria-label="Primary navigation">
   <button class="nav-item active" data-page="home" onclick="navigateTo('home')"><span class="material-symbols-outlined">dashboard</span><span>Home</span></button>
   <button class="nav-item" data-page="notes" onclick="navigateTo('notes')"><span class="material-symbols-outlined">description</span><span>Notes</span></button>
   <button class="nav-item" data-page="files" onclick="navigateTo('files')"><span class="material-symbols-outlined">folder</span><span>Files</span></button>

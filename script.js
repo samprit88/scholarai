@@ -241,12 +241,31 @@ function getDeviceId() {
 function getLocalMember() {
   const settings = ScholarDB.getSettings();
   const user = window.ScholarFirebase?.auth?.currentUser;
+  const uid = user?.uid || getDeviceId();
   return {
-    deviceId: user?.uid || getDeviceId(),
+    deviceId: uid,
+    uid,
+    displayName: user?.displayName || settings.name || 'Scholar',
     name: user?.displayName || settings.name || 'Scholar',
-    photoURL: user?.photoURL || settings.avatarPhoto || '',
+    photoURL: user?.photoURL || '',
     avatarColor: settings.avatarColor || '#7B3FA0'
   };
+}
+
+function getFirebaseAuthUser() {
+  return window.ScholarFirebase?.auth?.currentUser || (window.firebase ? window.firebase.auth().currentUser : null);
+}
+
+async function saveCurrentUserToStudyGroupMembers(groupCode) {
+  const user = getFirebaseAuthUser();
+  if (!groupCode || !user?.uid) throw new Error('Sign in is required to join a study group');
+  const membersRef = getStudyGroupMembersRef(groupCode);
+  if (!membersRef) throw new Error('Realtime Database is not available');
+  await membersRef.child(user.uid).set({
+    displayName: user.displayName || 'Scholar',
+    photoURL: user.photoURL || null,
+    uid: user.uid
+  });
 }
 
 function normalizeSyncedGroup(group) {
@@ -369,7 +388,12 @@ function listenToStudyGroupMembers(group) {
   studyGroupMembersRef.on('value', snapshot => {
     const members = [];
     snapshot.forEach(child => {
-      members.push({ uid: child.key, ...child.val() });
+      const value = child.val() || {};
+      members.push({
+        uid: value.uid || child.key,
+        displayName: value.displayName || 'Scholar',
+        photoURL: value.photoURL || null
+      });
     });
     const current = ScholarDB.getStudyGroup();
     if (current?.code === group.code) {
@@ -1562,7 +1586,7 @@ function renderStudyGroup() {
     '<div class="flex-row gap-sm mt-lg" style="justify-content:center"><button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText(\'' + group.code + '\');showToast(\'Code copied!\',\'success\')"><span class="material-symbols-outlined" style="font-size:16px">content_copy</span> Copy</button>' +
     '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn btn-sm btn-outline" style="border-color:var(--color-whatsapp);color:var(--color-whatsapp)"><span class="material-symbols-outlined" style="font-size:16px">chat</span> WhatsApp</a></div></div>' +
     syncStatus +
-    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" style="background:' + escapeHtml(m.color || '#7B3FA0') + '" title="' + escapeHtml(m.displayName || m.name || 'Scholar') + '">' + (m.photoURL ? '<img src="' + escapeHtml(m.photoURL) + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover">' : escapeHtml(getInitials(m.displayName || m.name || 'Scholar'))) + '</div><span>' + escapeHtml(m.displayName || m.name || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
+    '<h3 class="section-title mt-lg mb-sm">Members</h3><div class="group-members-grid">' + (members.length ? members.map(m => '<div class="member-profile"><div class="member-avatar" title="' + escapeHtml(m.displayName || 'Scholar') + '">' + (m.photoURL ? '<img src="' + escapeHtml(m.photoURL) + '" alt="' + escapeHtml(m.displayName || 'Member') + ' avatar">' : '<span>' + escapeHtml(getInitials(m.displayName || 'Scholar')) + '</span>') + '</div><span>' + escapeHtml(m.displayName || 'Scholar') + '</span></div>').join('') : '<span class="text-sm text-muted">No members yet</span>') + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Group Chat</h3><div class="group-chat-panel"><div id="group-chat-messages" class="group-chat-messages">' + renderGroupMessages(messages) + '</div><div class="group-chat-input-row"><textarea id="group-chat-input" class="group-chat-input" placeholder="Type a message..." rows="2"></textarea><button class="btn btn-primary btn-pill group-chat-send" onclick="sendGroupMessage()">Send</button></div></div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Notes</h3><div class="space-y">' + renderSharedNotes(sharedNotes) + '</div>' +
     '<h3 class="section-title mt-lg mb-sm">Shared Files</h3><div class="space-y">' + renderSharedFiles(sharedFiles) + '</div>' +
@@ -1622,7 +1646,7 @@ async function sendGroupMessage() {
     if (!ref) throw new Error('Realtime Database is not available');
     await ref.push({
       uid: member.deviceId,
-      displayName: member.name,
+      displayName: member.displayName,
       photoURL: member.photoURL || '',
       text,
       timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -1664,25 +1688,13 @@ async function createStudyGroup() {
       sharedNotes: [],
       sharedFiles: [],
       members: [{
-        id: member.deviceId,
-        name: member.name,
-        photoURL: member.photoURL || '',
-        color: member.avatarColor,
-        joinedAt: Date.now()
+        uid: member.uid,
+        displayName: member.displayName,
+        photoURL: member.photoURL || null
       }]
     };
     saveSyncedGroup(group);
-    
-    // Save to Realtime Database
-    const user = window.ScholarFirebase?.auth?.currentUser || (window.firebase ? window.firebase.auth().currentUser : null);
-    const membersRef = getStudyGroupMembersRef(code);
-    if (membersRef) {
-      membersRef.child(user?.uid || member.deviceId).set({
-        displayName: user?.displayName || 'Scholar',
-        photoURL: user?.photoURL || null,
-        uid: user?.uid || member.deviceId
-      });
-    }
+    await saveCurrentUserToStudyGroupMembers(code);
 
     renderStudyGroup();
     updateStudyGroupNavLabel();
@@ -1707,25 +1719,13 @@ async function joinStudyGroup() {
         sharedNotes: [],
         sharedFiles: [],
         members: [{
-          id: member.deviceId,
-          name: member.name,
-          photoURL: member.photoURL || '',
-          color: member.avatarColor,
-          joinedAt: Date.now()
+          uid: member.uid,
+          displayName: member.displayName,
+          photoURL: member.photoURL || null
         }]
       };
       saveSyncedGroup(group);
-      
-      // Save to Realtime Database
-      const user = window.ScholarFirebase?.auth?.currentUser || (window.firebase ? window.firebase.auth().currentUser : null);
-      const membersRef = getStudyGroupMembersRef(code);
-      if (membersRef) {
-        membersRef.child(user?.uid || member.deviceId).set({
-          displayName: user?.displayName || 'Scholar',
-          photoURL: user?.photoURL || null,
-          uid: user?.uid || member.deviceId
-        });
-      }
+      await saveCurrentUserToStudyGroupMembers(group.code);
 
       startStudyGroupPolling();
       renderStudyGroup();
@@ -2081,35 +2081,58 @@ function deleteFile(id) {
 // ══════════════════════════════════════════════════════════
 function renderSettings() {
   const s = ScholarDB.getSettings();
-  if (s.ariaPersonality) document.getElementById('set-personality').value = s.ariaPersonality;
+  const user = getFirebaseAuthUser();
+  const profileCard = document.getElementById('settings-profile-card');
+  if (profileCard) {
+    const profile = {
+      name: user?.displayName || s.name || 'Scholar',
+      avatarPhoto: user?.photoURL || s.avatarPhoto || '',
+      avatarColor: s.avatarColor || '#7B3FA0'
+    };
+    profileCard.innerHTML =
+      '<div class="settings-profile-avatar">' + renderAvatarHtml(profile, 'settings-profile-avatar') + '</div>' +
+      '<div><strong>' + escapeHtml(profile.name) + '</strong><span>' + escapeHtml(s.class || 'Student') + '</span></div>';
+  }
+
+  const personality = document.getElementById('set-personality');
+  if (personality && s.ariaPersonality) personality.value = s.ariaPersonality;
   
   const colors = ['#7B3FA0', '#C4853A', '#4A7C59', '#C0392B', '#D4838A', '#5B7BA0'];
-  document.getElementById('set-subject-color').innerHTML = colors.map(c => 
-    '<div class="color-swatch ' + (c === '#7B3FA0' ? 'selected' : '') + '" data-color="' + c + '" style="background:' + c + '"></div>'
-  ).join('');
-  
-  setupColorPicker('set-subject-color');
+  const subjectColor = document.getElementById('set-subject-color');
+  if (subjectColor) {
+    subjectColor.innerHTML = colors.map(c => 
+      '<div class="color-swatch ' + (c === '#7B3FA0' ? 'selected' : '') + '" data-color="' + c + '" style="background:' + c + '"></div>'
+    ).join('');
+    setupColorPicker('set-subject-color');
+  }
   
   const subs = ScholarDB.getAll('subjects');
-  document.getElementById('set-subjects-list').innerHTML = subs.map(sub => 
-    '<div class="card flex-between" style="padding:10px 14px;border-left:4px solid ' + sub.color + '"><span>' + sub.name + '</span><button class="btn btn-sm" style="color:var(--color-danger)" onclick="deleteSubject(\'' + sub.id + '\')"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button></div>'
-  ).join('');
+  const subjectsList = document.getElementById('set-subjects-list');
+  if (subjectsList) {
+    subjectsList.innerHTML = subs.map(sub => 
+      '<div class="card flex-between" style="padding:10px 14px;border-left:4px solid ' + sub.color + '"><span>' + sub.name + '</span><button class="btn btn-sm" style="color:var(--color-danger)" onclick="deleteSubject(\'' + sub.id + '\')"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button></div>'
+    ).join('');
+  }
   
   if (s.notifications) {
-    document.getElementById('tog-class').className = 'toggle ' + (s.notifications.classReminders ? 'on' : '');
-    document.getElementById('tog-assign').className = 'toggle ' + (s.notifications.assignmentReminders ? 'on' : '');
-    document.getElementById('tog-weekly').className = 'toggle ' + (s.notifications.weeklyDigest ? 'on' : '');
+    const classToggle = document.getElementById('tog-class');
+    const assignToggle = document.getElementById('tog-assign');
+    const weeklyToggle = document.getElementById('tog-weekly');
+    if (classToggle) classToggle.className = 'toggle ' + (s.notifications.classReminders ? 'on' : '');
+    if (assignToggle) assignToggle.className = 'toggle ' + (s.notifications.assignmentReminders ? 'on' : '');
+    if (weeklyToggle) weeklyToggle.className = 'toggle ' + (s.notifications.weeklyDigest ? 'on' : '');
   }
   
   // Storage
   let totalBytes = 0;
   for (let key in localStorage) { if (localStorage.hasOwnProperty(key)) { totalBytes += ((localStorage[key].length + key.length) * 2); } }
-  document.getElementById('storage-display').textContent = 'Local Storage Used: ' + (totalBytes / 1024).toFixed(2) + ' KB';
+  const storageDisplay = document.getElementById('storage-display');
+  if (storageDisplay) storageDisplay.textContent = 'Local Storage Used: ' + (totalBytes / 1024).toFixed(2) + ' KB';
   const sharePreview = document.getElementById('share-message-preview');
   if (sharePreview) sharePreview.textContent = getScholarAIShareMessage();
   
   // Add listeners for auto-save
-  document.getElementById('set-personality').onchange = (e) => updateSettings('ariaPersonality', e.target.value);
+  if (personality) personality.onchange = (e) => updateSettings('ariaPersonality', e.target.value);
 }
 
 function updateSettings(key, val) {
@@ -2304,7 +2327,7 @@ document.addEventListener('click', e => {
 function setupPWA() {
   if ('serviceWorker' in navigator) {
     let refreshing = false;
-    let waitingServiceWorker = null;
+    let waitingRegistration = null;
 
     const ensureUpdateBannerStyles = () => {
       if (document.getElementById('sw-update-banner-styles')) return;
@@ -2317,7 +2340,8 @@ function setupPWA() {
         .sw-update-banner.active{transform:translateY(0)}
         .sw-update-inner{width:100%;max-width:600px;display:flex;align-items:center;gap:12px}
         .sw-update-message{flex:1;font-size:14px;font-weight:700;line-height:1.35}
-        .sw-update-refresh{flex-shrink:0;border:0;border-radius:10px;background:#C4853A;color:#FAF3E8;font-family:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;box-shadow:var(--shadow)}
+        .sw-update-refresh{flex-shrink:0;border:0;border-radius:10px;background:#C4853A!important;color:#FAF3E8!important;font-family:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;box-shadow:var(--shadow)}
+        [data-theme="dark"] .sw-update-refresh{background:#C4853A!important;color:#FAF3E8!important}
         .sw-update-dismiss{flex-shrink:0;width:34px;height:34px;border:0;border-radius:50%;background:var(--color-soft-gold);color:var(--color-dark);font-family:inherit;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
         body.sw-update-visible .top-bar{top:var(--sw-update-banner-height)}
         body.sw-update-visible .main-content{padding-top:calc(76px + var(--sw-update-banner-height))}
@@ -2334,9 +2358,9 @@ function setupPWA() {
       document.head.appendChild(style);
     };
 
-    const showUpdateBanner = (serviceWorker) => {
-      if (!serviceWorker || document.getElementById('sw-update-banner')) return;
-      waitingServiceWorker = serviceWorker;
+    const showUpdateBanner = (registration) => {
+      if (!registration?.waiting || document.getElementById('sw-update-banner')) return;
+      waitingRegistration = registration;
       ensureUpdateBannerStyles();
 
       const banner = document.createElement('div');
@@ -2353,8 +2377,9 @@ function setupPWA() {
       });
 
       banner.querySelector('.sw-update-refresh')?.addEventListener('click', () => {
-        if (!waitingServiceWorker) return;
-        waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+        const registration = waitingRegistration;
+        if (!registration?.waiting) return;
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
         setTimeout(() => window.location.reload(), 300);
       });
 
@@ -2367,7 +2392,7 @@ function setupPWA() {
 
     const watchRegistrationForUpdates = (registration) => {
       if (registration.waiting && navigator.serviceWorker.controller) {
-        showUpdateBanner(registration.waiting);
+        showUpdateBanner(registration);
       }
 
       registration.addEventListener('updatefound', () => {
@@ -2376,7 +2401,7 @@ function setupPWA() {
 
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showUpdateBanner(newWorker);
+            showUpdateBanner(registration);
           }
         });
       });
