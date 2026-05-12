@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ScholarAI | Professional Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Playfair+Display:wght@700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-low": "#2D1B4E",
+                        "surface-container-high": "#3D2A5E",
+                        "primary-fixed-dim": "#e5b4ff",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#C4853A",
+                        "inverse-primary": "#e5b4ff",
+                        "background": "#1A1025",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#30004b",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#1A1025",
+                        "on-tertiary-fixed-variant": "#524600",
+                        "on-surface-variant": "#E8D9C4",
+                        "on-error": "#ffffff",
+                        "secondary-fixed": "#ffdcbb",
+                        "secondary": "#C4853A",
+                        "on-primary-fixed-variant": "#65298a",
+                        "on-primary-container": "#FAF3E8",
+                        "primary-container": "#7b3fa0",
+                        "on-secondary-container": "#1A1025",
+                        "surface-bright": "#2D1B4E",
+                        "on-secondary-fixed-variant": "#673d00",
+                        "on-surface": "#FAF3E8",
+                        "tertiary": "#6d5e06",
+                        "surface-tint": "#7f43a4",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#f8e382",
+                        "outline-variant": "#4d4450",
+                        "on-primary": "#FAF3E8",
+                        "surface": "#2D1B4E",
+                        "tertiary-fixed-dim": "#dbc769",
+                        "surface-container": "#2D1B4E",
+                        "on-secondary-fixed": "#2b1700",
+                        "on-tertiary-container": "#4a3f00",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#3D2A5E",
+                        "secondary-fixed-dim": "#ffb869",
+                        "outline": "#7e7481",
+                        "on-background": "#FAF3E8",
+                        "inverse-surface": "#FAF3E8",
+                        "primary": "#7b3fa0",
+                        "primary-fixed": "#f4d9ff",
+                        "on-tertiary-fixed": "#211b00",
+                        "surface-container-lowest": "#12091A",
+                        "surface-container-highest": "#3D2A5E",
+                        "inverse-on-surface": "#1A1025",
+                        "tertiary-container": "#beab51"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "999px"
+                    },
+                    "spacing": {
+                        "xl": "40px",
+                        "base": "4px",
+                        "xs": "4px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "container-margin": "24px",
+                        "sm": "8px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "h1": ["Noto Serif"],
+                        "button": ["Plus Jakarta Sans"],
+                        "h3": ["Noto Serif"],
+                        "h2": ["Noto Serif"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "display": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["15px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "h1": ["28px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "button": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "h3": ["18px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "caption": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ink-shadow {
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+        .hero-glow {
+            background: radial-gradient(circle at 50% 50%, rgba(123, 63, 160, 0.15) 0%, rgba(26, 16, 37, 0) 70%);
+        }
+        .glass-card {
+            background: rgba(45, 27, 78, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(196, 133, 58, 0.2);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary-container selection:text-on-secondary-container min-h-screen overflow-x-hidden">
+<!-- Onboarding Container -->
+<main class="relative min-h-screen flex flex-col max-w-[430px] mx-auto px-container-margin py-xl overflow-hidden">
+<!-- Background Decorative Elements -->
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] hero-glow pointer-events-none -z-10"></div>
+<div class="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 blur-[100px] rounded-full"></div>
+<!-- Branding Section -->
+<header class="text-center mb-xl">
+<h1 class="font-display text-[42px] leading-tight text-on-background mb-sm tracking-tight">
+                ScholarAI
+            </h1>
+<p class="font-body-md text-on-surface-variant max-w-[280px] mx-auto leading-relaxed opacity-80">
+                Elevating academic research through the precision of artificial intelligence.
+            </p>
+</header>
+<!-- Hero Section: Immersive Visuals -->
+<section class="relative flex-1 flex flex-col justify-center items-center mb-xl">
+<!-- Center Image Container -->
+<div class="relative w-full aspect-square max-h-[340px] flex items-center justify-center">
+<!-- Main Abstract Visualization -->
+<div class="relative w-64 h-64 rounded-full overflow-hidden border border-secondary/20 ink-shadow group">
+<img alt="Academic Research" class="w-full h-full object-cover opacity-60 mix-blend-luminosity grayscale group-hover:grayscale-0 transition-all duration-700" data-alt="A highly detailed cinematic shot of an ancient leather-bound book open on a dark mahogany desk, with a soft golden ethereal glow emanating from the pages. The lighting is low-key and dramatic, casting long shadows of a nearby brass microscope and glass inkwell. The atmosphere is scholarly and mysterious, with dust motes dancing in a single beam of warm amber light, creating a high-end academic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBc8TTaR1k5nUpPGW9iw3WCq0UiWSewZB6Z__ABF-Y1LGFjhiyPBm911zaDw4OacIhmoMKR-haVxQqXI1IZdZqyZy72OHlWLiD18-G3CdAVAPzfcP9yuYRM3AAo6yNekq-AkVv8ZpSn3vMttmyST_1F3wS_DO2UVB84zBCy9NY35672rPpwvYPajoqjUfmSc5C02bw_mwpAp2AjKoZLyo3UsuAhgBhjC0U7hLf2nf4xwp2woYeK6bQGsYFunPwhhMsHcuFw6Af0QvJd"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+</div>
+<!-- Floating Card 1: Active Thesis -->
+<div class="absolute top-4 -right-2 glass-card rounded-xl p-md ink-shadow flex items-center gap-md animate-pulse duration-[4000ms]">
+<div class="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history_edu</span>
+</div>
+<div>
+<span class="block text-caption text-secondary font-semibold uppercase tracking-wider">Active Thesis</span>
+<span class="block font-body-lg font-semibold text-on-surface">Quantum Dynamics</span>
+</div>
+</div>
+<!-- Floating Card 2: AI Analysis -->
+<div class="absolute bottom-10 -left-4 glass-card rounded-xl p-md ink-shadow flex flex-col gap-sm">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-fixed-dim text-sm" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="text-caption text-on-surface-variant font-medium">AI Analysis</span>
+</div>
+<div class="h-1.5 w-32 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full w-3/4 bg-secondary-container rounded-full"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant/60">Cross-referencing 1,240 papers...</span>
+</div>
+<!-- Subtle Decorative Rings -->
+<div class="absolute inset-0 border border-on-surface-variant/5 rounded-full scale-110 pointer-events-none"></div>
+<div class="absolute inset-0 border border-on-surface-variant/10 rounded-full scale-125 pointer-events-none"></div>
+</div>
+</section>
+<!-- Authentication & CTA Section -->
+<section class="w-full space-y-md">
+<!-- Primary Action -->
+<button class="w-full h-14 bg-on-surface text-background font-button text-body-lg rounded-xl flex items-center justify-center gap-md hover:bg-on-surface-variant transition-colors active:scale-[0.98] duration-150">
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+                Continue with Google
+            </button>
+<!-- Secondary Actions -->
+<div class="grid grid-cols-1 gap-sm">
+<button class="w-full h-14 border border-outline-variant text-on-surface font-button text-body-lg rounded-xl flex items-center justify-center hover:bg-surface-container-high transition-colors active:scale-[0.98] duration-150">
+                    Sign in with Email
+                </button>
+<button class="w-full h-12 text-on-surface-variant font-button text-caption rounded-xl flex items-center justify-center hover:text-on-surface transition-colors active:opacity-70">
+                    Continue as Guest
+                </button>
+</div>
+<!-- Footer / Terms -->
+<footer class="pt-lg text-center">
+<p class="text-[11px] text-on-surface-variant/40 leading-relaxed px-md">
+                    By continuing, you agree to ScholarAI's <a class="underline hover:text-secondary transition-colors" href="#">Terms of Service</a> and <a class="underline hover:text-secondary transition-colors" href="#">Privacy Policy</a>.
+                </p>
+</footer>
+</section>
+<!-- Navigation Indicator (iOS style) -->
+<div class="mt-xl flex justify-center items-center gap-xs">
+<div class="w-1.5 h-1.5 rounded-full bg-secondary"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/20"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/20"></div>
+</div>
+</main>
+<!-- Interactive Elements Floating Background -->
+<div class="fixed top-1/4 -left-10 w-24 h-24 border border-secondary/5 rounded-full rotate-45 pointer-events-none opacity-50"></div>
+<div class="fixed bottom-1/4 -right-10 w-40 h-40 border border-primary/5 rounded-full pointer-events-none opacity-50"></div>
+</body></html>
