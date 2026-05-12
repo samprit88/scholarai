@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scholarai-v8';
+const CACHE_NAME = 'scholarai-v9';
 const APP_ASSETS = [
   './',
   'index.html',
@@ -9,7 +9,9 @@ const APP_ASSETS = [
   'aria.js',
   'notifications.js',
   'script.js',
-  'manifest.json'
+  'manifest.json',
+  'icons/icon-192.png',
+  'icons/icon-512.png'
 ];
 const smartCalendarTimers = new Map();
 
@@ -86,6 +88,21 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/') || url.hostname.includes('onrender.com')) return;
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(cached => cached || caches.match('index.html')))
+    );
+    return;
+  }
 
   // Network-first keeps users on the newest app files, with cache as an offline fallback.
   event.respondWith(

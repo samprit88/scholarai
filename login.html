@@ -21,6 +21,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
 :root{
   --auth-bg:#FAF3E8;
@@ -191,6 +193,11 @@ body{
 .auth-footer{padding-top:12px;text-align:center}
 .auth-footer p{max-width:310px;margin:0 auto;color:color-mix(in srgb,var(--auth-muted) 66%,transparent);font-size:11px;line-height:1.6}
 .auth-footer a{color:var(--auth-gold);text-underline-offset:4px}
+.auth-install{display:none;align-items:center;justify-content:space-between;gap:12px;width:100%;margin-top:12px;padding:12px 14px;border:1px solid var(--auth-border);border-radius:14px;background:color-mix(in srgb,var(--auth-surface) 82%,transparent);box-shadow:var(--auth-shadow)}
+.auth-install-copy{min-width:0}
+.auth-install-copy strong{display:block;color:var(--auth-text);font-size:13px;line-height:1.25}
+.auth-install-copy span{display:block;margin-top:3px;color:var(--auth-muted);font-size:11px;line-height:1.35}
+.auth-install button{flex:0 0 auto;min-height:34px;padding:8px 12px;border:0;border-radius:999px;background:var(--auth-gold);color:#1A1025;font:700 12px/1 "Plus Jakarta Sans",sans-serif;cursor:pointer}
 .auth-dots{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:26px}
 .auth-dots span{width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--auth-muted) 24%,transparent)}
 .auth-dots span:first-child{background:var(--auth-gold)}
@@ -250,6 +257,10 @@ body{
       <footer class="auth-footer">
         <p>By continuing, you agree to ScholarAI's <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
       </footer>
+      <div id="auth-install-banner" class="auth-install">
+        <div class="auth-install-copy"><strong>Install ScholarAI</strong><span>Add it to your home screen for faster access.</span></div>
+        <button id="auth-install-btn" type="button">Install</button>
+      </div>
     </section>
 
     <div class="auth-dots" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -260,6 +271,60 @@ body{
   <script>
     const loginStatus = document.getElementById('login-status');
     const googleButton = document.getElementById('google-signin-btn');
+    let authDeferredPrompt = null;
+
+    function isStandalonePWA() {
+      return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone;
+    }
+
+    function isIOSInstallCandidate() {
+      const ua = window.navigator.userAgent || '';
+      const isiOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      return isiOS && !window.navigator.standalone;
+    }
+
+    function showAuthInstallBanner() {
+      const banner = document.getElementById('auth-install-banner');
+      if (!banner || (!authDeferredPrompt && !isIOSInstallCandidate()) || isStandalonePWA()) return;
+      banner.style.display = 'flex';
+    }
+
+    function hideAuthInstallBanner() {
+      const banner = document.getElementById('auth-install-banner');
+      if (banner) banner.style.display = 'none';
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      authDeferredPrompt = event;
+      showAuthInstallBanner();
+    });
+
+    window.addEventListener('appinstalled', () => {
+      authDeferredPrompt = null;
+      hideAuthInstallBanner();
+    });
+
+    document.getElementById('auth-install-btn')?.addEventListener('click', async () => {
+      if (!authDeferredPrompt) {
+        loginStatus.textContent = 'On iPhone or iPad, use Share, then Add to Home Screen.';
+        return;
+      }
+      hideAuthInstallBanner();
+      authDeferredPrompt.prompt();
+      await authDeferredPrompt.userChoice.catch(() => {});
+      authDeferredPrompt = null;
+    });
+
+    if (isIOSInstallCandidate()) {
+      window.addEventListener('load', () => setTimeout(showAuthInstallBanner, 600));
+    }
 
     ScholarFirebase.auth.onAuthStateChanged(user => {
       if (user) window.location.replace('index.html');

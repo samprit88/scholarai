@@ -14,6 +14,7 @@ let currentTaskFilter = 'all';
 let fileDB = null;
 let obSubjects = [];
 let deferredPrompt = null;
+let pwaSetupComplete = false;
 let studyGroupPollTimer = null;
 let studyGroupLastActivityAt = Date.now();
 let lastStudyGroupSyncError = '';
@@ -66,6 +67,35 @@ const STUDY_TIPS = [
   'Practice deep breathing before stressful exams.',
   'Review mistakes in previous tests — they show what to focus on.'
 ];
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showPWAInstallBanner();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  hidePWAInstallBanner();
+});
+
+function showPWAInstallBanner() {
+  const banner = document.getElementById('pwa-banner');
+  if (!banner || (!deferredPrompt && !isIOSInstallCandidate())) return;
+  if (window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone) return;
+  banner.style.display = 'flex';
+}
+
+function hidePWAInstallBanner() {
+  const banner = document.getElementById('pwa-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+function isIOSInstallCandidate() {
+  const ua = window.navigator.userAgent || '';
+  const isiOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return isiOS && !window.navigator.standalone;
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await window.ScholarFirebase?.authReady;
@@ -2660,6 +2690,11 @@ document.addEventListener('click', e => {
 // PWA
 // ══════════════════════════════════════════════════════════
 function setupPWA() {
+  if (pwaSetupComplete) {
+    showPWAInstallBanner();
+    return;
+  }
+  pwaSetupComplete = true;
   if ('serviceWorker' in navigator) {
     let refreshing = false;
     let waitingRegistration = null;
@@ -2747,7 +2782,7 @@ function setupPWA() {
       refreshing = true;
       window.location.reload();
     });
-    navigator.serviceWorker.register('service-worker.js?v=8')
+    navigator.serviceWorker.register('service-worker.js')
       .then(r => {
         console.log('SW Registered', r.scope);
         watchRegistrationForUpdates(r);
@@ -2755,19 +2790,18 @@ function setupPWA() {
       })
       .catch(e => console.error('SW Error', e));
   }
-  
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    document.getElementById('pwa-banner').style.display = 'flex';
-  });
-  
+
   document.getElementById('pwa-install-btn')?.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    document.getElementById('pwa-banner').style.display = 'none';
+    if (!deferredPrompt) {
+      showToast('Use Share, then Add to Home Screen to install ScholarAI.', 'info');
+      return;
+    }
+    hidePWAInstallBanner();
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log('User response to the install prompt: ' + outcome);
     deferredPrompt = null;
   });
+
+  showPWAInstallBanner();
 }
