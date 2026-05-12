@@ -10,6 +10,7 @@ const ScholarDB = (() => {
     let cloudReady = false;
     let cloudUser = null;
     let cloudUnsubs = [];
+    let subjectsCloudHydrated = false;
 
     // ── Helpers ──────────────────────────────────────────
     function uid() {
@@ -104,12 +105,28 @@ const ScholarDB = (() => {
             try { unsub(); } catch (e) {}
         });
         cloudUnsubs = [];
+        subjectsCloudHydrated = false;
         cloudCache.assignments = [];
         cloudCache.notes = [];
         cloudCache.timetable = [];
         if (!cloudUser || !getFirestore()) return;
 
         const base = getUserBase();
+        cloudUnsubs.push(base.collection('subjects').onSnapshot(snapshot => {
+            const subjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if (subjects.length) {
+                set('subjects', subjects);
+            } else if (!subjectsCloudHydrated) {
+                const localSubjects = getAll('subjects');
+                localSubjects.forEach(subject => {
+                    if (subject?.id) base.collection('subjects').doc(subject.id).set(subject, { merge: true }).catch(() => {});
+                });
+            } else {
+                set('subjects', []);
+            }
+            subjectsCloudHydrated = true;
+            refreshVisiblePage();
+        }, () => {}));
         cloudUnsubs.push(base.collection('assignments').onSnapshot(snapshot => {
             cloudCache.assignments = snapshot.docs.map(doc => normalizeCloudItem('assignments', doc.id, doc.data()));
             refreshVisiblePage();
@@ -219,7 +236,8 @@ const ScholarDB = (() => {
         items.push(normalized);
         set(store, items);
         const base = getUserBase();
-        if (base && store === 'assignments') base.collection('assignments').doc(normalized.id).set(toFirestoreData(store, normalized), { merge: true }).catch(() => {});
+        if (base && store === 'subjects') base.collection('subjects').doc(normalized.id).set(normalized, { merge: true }).catch(() => {});
+        else if (base && store === 'assignments') base.collection('assignments').doc(normalized.id).set(toFirestoreData(store, normalized), { merge: true }).catch(() => {});
         else if (base && store === 'notes') base.collection('notes').doc(normalized.id).set(toFirestoreData(store, normalized), { merge: true }).catch(() => {});
         else if (base && store === 'timetable') writeCloudStore('timetable');
         return normalized;
@@ -232,7 +250,8 @@ const ScholarDB = (() => {
         items[idx] = store === 'assignments' ? normalizeAssignment({ ...items[idx], ...updates }) : store === 'notes' ? normalizeNote({ ...items[idx], ...updates }) : { ...items[idx], ...updates };
         set(store, items);
         const base = getUserBase();
-        if (base && store === 'assignments') base.collection('assignments').doc(id).set(toFirestoreData(store, items[idx]), { merge: true }).catch(() => {});
+        if (base && store === 'subjects') base.collection('subjects').doc(id).set(items[idx], { merge: true }).catch(() => {});
+        else if (base && store === 'assignments') base.collection('assignments').doc(id).set(toFirestoreData(store, items[idx]), { merge: true }).catch(() => {});
         else if (base && store === 'notes') base.collection('notes').doc(id).set(toFirestoreData(store, items[idx]), { merge: true }).catch(() => {});
         else if (base && store === 'timetable') writeCloudStore('timetable');
         return items[idx];
@@ -242,7 +261,8 @@ const ScholarDB = (() => {
         const items = getAll(store).filter(i => i.id !== id);
         set(store, items);
         const base = getUserBase();
-        if (base && store === 'assignments') base.collection('assignments').doc(id).delete().catch(() => {});
+        if (base && store === 'subjects') base.collection('subjects').doc(id).delete().catch(() => {});
+        else if (base && store === 'assignments') base.collection('assignments').doc(id).delete().catch(() => {});
         else if (base && store === 'notes') base.collection('notes').doc(id).delete().catch(() => {});
         else if (base && store === 'timetable') writeCloudStore('timetable');
     }

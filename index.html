@@ -191,7 +191,13 @@
   <button id="profile-edit-btn" class="btn btn-outline btn-pill profile-edit-btn" onclick="toggleProfileEdit()">Edit Profile</button>
   <div class="profile-divider"></div>
   <section>
-    <h2 class="profile-section-title">My Subjects</h2>
+    <div class="profile-section-heading">
+      <h2 class="profile-section-title">My Subjects</h2>
+      <button class="profile-add-subject-btn" type="button" onclick="openProfileSubjectModal()" aria-label="Add subject">
+        <span class="material-symbols-outlined">add</span>
+        <span>Add Subject</span>
+      </button>
+    </div>
     <div id="profile-subjects-list" class="profile-subjects-list"></div>
   </section>
   <p id="profile-join-date" class="profile-join-date"></p>
@@ -395,6 +401,26 @@
     <button class="profile-sheet-option" onclick="document.getElementById('profile-photo-input').click()"><span class="material-symbols-outlined">add_a_photo</span><span>Upload Photo</span></button>
     <button class="profile-sheet-option" onclick="showAvatarChoices()"><span class="material-symbols-outlined">palette</span><span>Choose Avatar</span></button>
     <div id="avatar-choice-panel" class="avatar-choice-panel hidden"></div>
+  </div>
+</div>
+
+<!-- PROFILE SUBJECT MODAL -->
+<div id="profile-subject-modal-overlay" class="modal-overlay">
+  <div class="modal profile-subject-modal">
+    <div class="modal-header">
+      <h2 id="profile-subject-modal-heading">Add Subject</h2>
+      <button class="modal-close" onclick="closeProfileSubjectModal()" aria-label="Close add subject dialog"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <input type="hidden" id="profile-subject-edit-id">
+    <div class="form-group">
+      <label for="profile-subject-name">Subject Name</label>
+      <input id="profile-subject-name" class="input" placeholder="Biology">
+    </div>
+    <div class="form-group">
+      <label>Subject Color</label>
+      <div id="profile-subject-color-picker" class="profile-subject-color-picker" aria-label="Choose subject color"></div>
+    </div>
+    <button id="profile-subject-save-btn" class="btn btn-primary profile-subject-save-btn" type="button" onclick="saveProfileSubject()">Add Subject</button>
   </div>
 </div>
 

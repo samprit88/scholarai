@@ -26,6 +26,8 @@ let profileDisplayNameUnsub = null;
 let profilePhotoUnsub = null;
 let customProfileDisplayName = '';
 let customProfilePhotoURL = '';
+let profileSubjectSelectedColor = '#7B3FA0';
+const PROFILE_SUBJECT_COLORS = ['#7B3FA0', '#4A7C59', '#5B7BA0', '#C4853A', '#D4838A', '#D4A050'];
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
 const SMART_CALENDAR_TIMER_MAX = 2147483647;
@@ -737,14 +739,84 @@ function renderProfile() {
   if (list) {
     list.innerHTML = subjects.length ? subjects.map(sub =>
       '<div class="profile-subject-card" style="border-left-color:' + escapeHtml(sub.color || '#7B3FA0') + '">' +
-      '<strong>' + escapeHtml(sub.name || 'Subject') + '</strong>' +
-      (sub.teacher ? '<span>' + escapeHtml(sub.teacher) + '</span>' : '') +
+      '<div class="profile-subject-copy"><strong>' + escapeHtml(sub.name || 'Subject') + '</strong>' +
+      (sub.teacher ? '<span>' + escapeHtml(sub.teacher) + '</span>' : '') + '</div>' +
+      '<div class="profile-subject-actions">' +
+      '<button class="icon-btn profile-subject-action" type="button" onclick="openProfileSubjectModal(\'' + escapeHtml(sub.id) + '\')" aria-label="Edit ' + escapeHtml(sub.name || 'subject') + '"><span class="material-symbols-outlined">edit</span></button>' +
+      '<button class="icon-btn profile-subject-action profile-subject-delete" type="button" onclick="deleteProfileSubject(\'' + escapeHtml(sub.id) + '\')" aria-label="Delete ' + escapeHtml(sub.name || 'subject') + '"><span class="material-symbols-outlined">delete</span></button>' +
+      '</div>' +
       '</div>'
     ).join('') : '<div class="empty-state" style="padding:24px 12px"><p>No subjects added yet.</p></div>';
   }
 
   const joined = document.getElementById('profile-join-date');
   if (joined) joined.textContent = 'Member since ' + new Date(settings.profileJoinedAt).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function renderProfileSubjectColorPicker(selectedColor) {
+  const picker = document.getElementById('profile-subject-color-picker');
+  if (!picker) return;
+  profileSubjectSelectedColor = PROFILE_SUBJECT_COLORS.includes(selectedColor) ? selectedColor : (selectedColor || PROFILE_SUBJECT_COLORS[0]);
+  picker.innerHTML = PROFILE_SUBJECT_COLORS.map(color =>
+    '<button class="profile-subject-swatch ' + (color === profileSubjectSelectedColor ? 'selected' : '') + '" type="button" data-color="' + color + '" style="background:' + color + '" onclick="chooseProfileSubjectColor(\'' + color + '\')" aria-label="Choose subject color"></button>'
+  ).join('');
+}
+
+function chooseProfileSubjectColor(color) {
+  profileSubjectSelectedColor = color || PROFILE_SUBJECT_COLORS[0];
+  document.querySelectorAll('#profile-subject-color-picker .profile-subject-swatch').forEach(swatch => {
+    swatch.classList.toggle('selected', swatch.dataset.color === profileSubjectSelectedColor);
+  });
+}
+
+function openProfileSubjectModal(editId) {
+  const subject = editId ? ScholarDB.getById('subjects', editId) : null;
+  document.getElementById('profile-subject-edit-id').value = subject?.id || '';
+  document.getElementById('profile-subject-modal-heading').textContent = subject ? 'Edit Subject' : 'Add Subject';
+  document.getElementById('profile-subject-save-btn').textContent = subject ? 'Save Subject' : 'Add Subject';
+  document.getElementById('profile-subject-name').value = subject?.name || '';
+  renderProfileSubjectColorPicker(subject?.color || PROFILE_SUBJECT_COLORS[0]);
+  document.getElementById('profile-subject-modal-overlay')?.classList.add('active');
+  setTimeout(() => document.getElementById('profile-subject-name')?.focus(), 80);
+}
+
+function closeProfileSubjectModal() {
+  document.getElementById('profile-subject-modal-overlay')?.classList.remove('active');
+}
+
+function isValidSubjectColor(color) {
+  return /^#[0-9A-F]{6}$/i.test(color || '');
+}
+
+function saveProfileSubject() {
+  const input = document.getElementById('profile-subject-name');
+  const name = input?.value.trim();
+  if (!name) {
+    showToast('Subject name required', 'error');
+    input?.focus();
+    return;
+  }
+  const color = isValidSubjectColor(profileSubjectSelectedColor) ? profileSubjectSelectedColor : PROFILE_SUBJECT_COLORS[0];
+  const editId = document.getElementById('profile-subject-edit-id')?.value;
+  if (editId) {
+    ScholarDB.update('subjects', editId, { name, color });
+    showToast('Subject updated', 'success');
+  } else {
+    ScholarDB.add('subjects', { name, color, teacher: '', room: '' });
+    showToast('Subject added', 'success');
+  }
+  closeProfileSubjectModal();
+  renderProfile();
+  if (currentPage === 'home') renderHome();
+}
+
+function deleteProfileSubject(id) {
+  showConfirm('Delete Subject', 'Are you sure? This will not delete related notes or assignments.', () => {
+    ScholarDB.remove('subjects', id);
+    renderProfile();
+    if (currentPage === 'settings') renderSettings();
+    showToast('Subject deleted', 'success');
+  });
 }
 
 async function toggleProfileEdit() {
