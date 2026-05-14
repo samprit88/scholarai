@@ -77,6 +77,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
   hidePWAInstallBanner();
+  window.ScholarAnalytics?.capture('pwa_installed');
 });
 
 function showPWAInstallBanner() {
@@ -103,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.replace('login.html');
     return;
   }
+  window.ScholarAnalytics?.identifyFirebaseUser(user);
   initThemeToggle();
   ScholarDB.init();
   await ScholarDB.initCloud(user);
@@ -247,7 +249,9 @@ function renderFirebaseUserNav() {
 
 async function signOutUser() {
   showConfirm('Sign Out', 'Are you sure you want to sign out?', async () => {
+    window.ScholarAnalytics?.capture('user_logged_out');
     await window.ScholarFirebase?.auth?.signOut();
+    window.ScholarAnalytics?.reset();
     window.location.replace('login.html');
   });
 }
@@ -1252,6 +1256,7 @@ async function summarizeNote(id) {
     const result = await ARIA.summarizeNote(note.content);
     const parsed = parseAISummary(result);
     ScholarDB.update('notes', id, { aiSummary: parsed.summary, keyPoints: parsed.keyPoints, examQuestions: parsed.examQuestions, flashcards: parsed.flashcards });
+    window.ScholarAnalytics?.capture('notes_summarized');
     viewNote(id);
     showToast('AI analysis complete!', 'success');
   } catch(e) { showToast('AI Error: ' + e.message, 'error'); }
@@ -1399,13 +1404,13 @@ function saveTask() {
   };
   const editId = document.getElementById('task-edit-id').value;
   if (editId) { ScholarDB.update('assignments', editId, data); showToast('Assignment updated!', 'success'); }
-  else { ScholarDB.add('assignments', data); showToast('Assignment added!', 'success'); }
+  else { ScholarDB.add('assignments', data); window.ScholarAnalytics?.capture('assignment_created'); showToast('Assignment added!', 'success'); }
   closeTaskModal(); renderTasks(); if (currentPage === 'home') renderHome();
 }
 
 function updateTaskStatus(id, status) {
   ScholarDB.update('assignments', id, { status });
-  if (status === 'done') { triggerConfetti(); showToast('Assignment completed! Great work!', 'success'); }
+  if (status === 'done') { window.ScholarAnalytics?.capture('assignment_completed'); triggerConfetti(); showToast('Assignment completed! Great work!', 'success'); }
   renderTasks();
 }
 
@@ -1547,6 +1552,7 @@ function saveEvent() {
     subjectId: document.getElementById('event-subject').value,
     description: document.getElementById('event-desc').value
   });
+  window.ScholarAnalytics?.capture('calendar_event_created');
   closeEventModal(); renderCalendar(); if(currentPage==='home') renderHome();
   showToast('Event added!', 'success');
 }
@@ -1760,6 +1766,7 @@ async function saveSmartCalendarEvent() {
 
   const data = { title, description, date, time, updatedAt: Date.now() };
   const saved = editId ? ScholarDB.update('smartCalendarEvents', editId, data) : ScholarDB.add('smartCalendarEvents', { ...data, createdAt: Date.now(), notifiedAt: null });
+  if (!editId) window.ScholarAnalytics?.capture('calendar_event_created');
   smartCalendarSelectedDate = date;
   const selected = parseDateKey(date);
   smartCalMonth = selected.getMonth();
@@ -2006,6 +2013,7 @@ async function sendGroupMessage() {
       text,
       timestamp: window.firebase.database.ServerValue.TIMESTAMP
     });
+    window.ScholarAnalytics?.capture('message_sent');
   } catch (error) {
     lastStudyGroupSyncError = error.message;
     if (input) input.value = text;
@@ -2053,6 +2061,7 @@ async function createStudyGroup() {
     saveSyncedGroup(group);
     await saveCurrentUserToStudyGroupMembers(code);
 
+    window.ScholarAnalytics?.capture('study_group_created');
     renderStudyGroup();
     updateStudyGroupNavLabel();
     showToast('Group code: ' + group.code, 'success');
@@ -2086,6 +2095,7 @@ async function joinStudyGroup() {
       saveSyncedGroup(group);
       await saveCurrentUserToStudyGroupMembers(group.code);
 
+      window.ScholarAnalytics?.capture('group_joined');
       startStudyGroupPolling();
       renderStudyGroup();
       updateStudyGroupNavLabel();
@@ -2189,6 +2199,7 @@ async function sendAriaMessage() {
   if (!msg) return;
 
   appendChatMessage(msg, 'user');
+  window.ScholarAnalytics?.capture('aria_prompt_sent');
   input.value = '';
   autoResizeAriaInput();
   document.getElementById('aria-chips').style.display = 'none';
