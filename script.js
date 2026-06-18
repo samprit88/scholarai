@@ -28,6 +28,9 @@ let profilePhotoUnsub = null;
 let customProfileDisplayName = '';
 let customProfilePhotoURL = '';
 let profileSubjectSelectedColor = '#7B3FA0';
+const FILE_CACHE_NAME = 'scholarai-file-blobs-v1';
+const FILE_CACHE_PREFIX = '/__scholarai_file_cache/';
+const NOTE_PREVIEW_CHAR_LIMIT = 180;
 const PROFILE_SUBJECT_COLORS = ['#7B3FA0', '#4A7C59', '#5B7BA0', '#C4853A', '#D4838A', '#D4A050'];
 const STUDY_GROUP_POLL_FAST = 1500;
 const THEME_STORAGE_KEY = 'scholarai-theme';
@@ -311,6 +314,116 @@ function escapeHtml(value) {
     '"': '&quot;',
     "'": '&#39;'
   }[ch]));
+}
+
+function normalizeNoteMarkdown(text) {
+  return String(text || '').replace(/^[ \t]*={3,}[ \t]*$/gm, '---');
+}
+
+function stripMarkdownSyntax(text) {
+  return normalizeNoteMarkdown(text)
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_~`>#-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function renderMarkdownContent(text) {
+  const source = normalizeNoteMarkdown(text);
+  let html = escapeHtml(source).replace(/\n/g, '<br>');
+  if (window.marked?.parse && window.DOMPurify?.sanitize) {
+    try {
+      window.marked.setOptions({ breaks: true, gfm: true });
+      html = window.marked.parse(source);
+    } catch (error) {
+      html = escapeHtml(source).replace(/\n/g, '<br>');
+    }
+    return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+  }
+  return html;
+}
+
+function getNotePlainText(text) {
+  if (window.marked?.parse && window.DOMPurify?.sanitize) {
+    const div = document.createElement('div');
+    div.innerHTML = renderMarkdownContent(text);
+    return div.textContent.replace(/\s+/g, ' ').trim();
+  }
+  return stripMarkdownSyntax(text);
+}
+
+function truncateText(text, limit = NOTE_PREVIEW_CHAR_LIMIT) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= limit) return clean;
+  const slice = clean.slice(0, limit).replace(/\s+\S*$/, '').trim();
+  return (slice || clean.slice(0, limit)).trim() + '...';
+}
+
+function getNotePreviewText(text, limit = NOTE_PREVIEW_CHAR_LIMIT) {
+  return truncateText(getNotePlainText(text), limit);
+}
+
+function dataUrlToBlob(dataUrl, fallbackType = 'application/octet-stream') {
+  const value = String(dataUrl || '');
+  const parts = value.split(',');
+  if (parts.length < 2) return new Blob([value], { type: fallbackType });
+  const mime = (parts[0].match(/data:([^;]+)/) || [])[1] || fallbackType;
+  const binary = atob(parts[1]);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+function getFileCacheRequest(file) {
+  return new Request(FILE_CACHE_PREFIX + encodeURIComponent(file.id || file.name || Date.now()), { method: 'GET' });
+}
+
+async function cacheFileBlob(file, blob) {
+  if (!('caches' in window) || !file) return blob;
+  const fileBlob = blob || dataUrlToBlob(file.data || ('data:' + (file.type || 'application/octet-stream') + ';base64,' + (file.base64 || '')), file.type);
+  const cache = await caches.open(FILE_CACHE_NAME);
+  await cache.put(getFileCacheRequest(file), new Response(fileBlob, {
+    headers: {
+      'Content-Type': fileBlob.type || file.type || 'application/octet-stream',
+      'X-ScholarAI-File-Name': encodeURIComponent(file.name || 'scholarai-file')
+    }
+  }));
+  return fileBlob;
+}
+
+async function getCachedFileBlob(file) {
+  if (!file) return null;
+  if ('caches' in window) {
+    const cached = await caches.open(FILE_CACHE_NAME).then(cache => cache.match(getFileCacheRequest(file)));
+    if (cached) return cached.blob();
+  }
+  if (file.data || file.base64) return cacheFileBlob(file);
+  if (file.url || file.downloadURL) {
+    const response = await fetch(file.url || file.downloadURL);
+    if (!response.ok) throw new Error('File download failed');
+    const blob = await response.blob();
+    await cacheFileBlob(file, blob).catch(() => {});
+    return blob;
+  }
+  return null;
+}
+
+async function downloadFileBlob(file) {
+  const blob = await getCachedFileBlob(file);
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name || 'scholarai-file';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function formatDateKey(date) {
@@ -1133,7 +1246,7 @@ function renderNotes() {
     const date = new Date(n.dateModified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return '<div class="card" style="border-left:4px solid ' + (sub?sub.color:'var(--color-accent)') + ';cursor:pointer" onclick="viewNote(\'' + n.id + '\')">' +
       '<div class="flex-between"><h3 class="heading" style="font-size:16px">' + n.title + '</h3><span class="text-xs text-muted">' + date + '</span></div>' +
-      '<p class="text-sm text-muted line-clamp-2 mt-sm">' + n.content.substring(0, 150) + '...</p>' +
+      '<p class="text-sm text-muted line-clamp-2 mt-sm">' + escapeHtml(getNotePreviewText(n.content, 160)) + '</p>' +
       '<div class="flex-between mt-sm">' +
       (sub ? '<span class="pill pill-plum" style="background:' + sub.color + '20;color:' + sub.color + '">' + sub.name + '</span>' : '<span></span>') +
       '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();shareNoteToGroup(\'' + n.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">group</span> Share to Group</button>' +
@@ -1155,7 +1268,7 @@ function viewNote(id) {
   let html = '<div style="margin-bottom:12px">';
   if (sub) html += '<span class="pill" style="background:' + sub.color + '20;color:' + sub.color + '">' + sub.name + '</span> ';
   html += '<span class="text-xs text-muted">' + new Date(note.dateModified).toLocaleDateString() + '</span></div>';
-  html += '<div style="white-space:pre-wrap;line-height:1.7;font-size:14px">' + note.content + '</div>';
+  html += '<div class="markdown-content">' + renderMarkdownContent(note.content) + '</div>';
 
   // AI Summary sections
   if (note.aiSummary) {
@@ -2024,10 +2137,38 @@ async function sendGroupMessage() {
 
 function renderSharedNotes(notes) {
   if (!notes.length) return '<div class="empty-state" style="padding:24px 12px"><p>No shared notes yet.</p></div>';
-  return notes.map(n => '<div class="card" style="border-left:4px solid var(--color-accent)">' +
-    '<div class="flex-between"><h3 class="heading" style="font-size:15px">' + escapeHtml(n.title || 'Untitled note') + '</h3><span class="text-xs text-muted">' + new Date(n.sharedAt || Date.now()).toLocaleDateString() + '</span></div>' +
-    '<p class="text-xs text-muted mt-sm">' + escapeHtml(n.subject || 'General') + ' • Shared by ' + escapeHtml(n.sharerName || 'Scholar') + '</p>' +
-    '<p class="text-sm mt-sm" style="white-space:pre-wrap;line-height:1.6">' + escapeHtml(n.content || '') + '</p></div>').join('');
+  return notes.map(n => {
+    const id = escapeHtml(n.id || '');
+    const preview = getNotePreviewText(n.content);
+    const fullText = getNotePlainText(n.content);
+    const hasMore = fullText.length > preview.replace(/\.\.\.$/, '').length;
+    return '<div class="card shared-note-card">' +
+      '<div class="flex-between"><h3 class="heading" style="font-size:15px">' + escapeHtml(n.title || 'Untitled note') + '</h3><span class="text-xs text-muted">' + new Date(n.sharedAt || Date.now()).toLocaleDateString() + '</span></div>' +
+      '<p class="text-xs text-muted mt-sm">' + escapeHtml(n.subject || 'General') + ' &bull; Shared by ' + escapeHtml(n.sharerName || 'Scholar') + '</p>' +
+      '<div id="shared-note-body-' + id + '" class="shared-note-body shared-note-preview">' + escapeHtml(preview) + '</div>' +
+      (hasMore ? '<button id="shared-note-toggle-' + id + '" class="shared-note-toggle" type="button" onclick="toggleSharedNote(\'' + id + '\')">Read more</button>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function toggleSharedNote(id) {
+  const group = ScholarDB.getStudyGroup();
+  const note = (group?.sharedNotes || []).find(n => n.id === id);
+  const body = document.getElementById('shared-note-body-' + id);
+  const btn = document.getElementById('shared-note-toggle-' + id);
+  if (!note || !body || !btn) return;
+  const expanded = body.dataset.expanded === 'true';
+  if (expanded) {
+    body.dataset.expanded = 'false';
+    body.classList.add('shared-note-preview');
+    body.textContent = getNotePreviewText(note.content);
+    btn.textContent = 'Read more';
+  } else {
+    body.dataset.expanded = 'true';
+    body.classList.remove('shared-note-preview');
+    body.innerHTML = '<div class="markdown-content">' + renderMarkdownContent(note.content) + '</div>';
+    btn.textContent = 'Show less';
+  }
 }
 
 function renderSharedFiles(files) {
@@ -2136,16 +2277,15 @@ async function refreshStudyGroupMessages(silent = true) {
   listenToStudyGroupMessages(group);
 }
 
-function downloadSharedFile(id) {
+async function downloadSharedFile(id) {
   const group = ScholarDB.getStudyGroup();
   const file = (group?.sharedFiles || []).find(f => f.id === id);
   if (!file) return;
-  const a = document.createElement('a');
-  a.href = 'data:' + (file.type || 'application/octet-stream') + ';base64,' + file.base64;
-  a.download = file.name || 'shared-file';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  try {
+    await downloadFileBlob({ ...file, data: file.data || ('data:' + (file.type || 'application/octet-stream') + ';base64,' + (file.base64 || '')) });
+  } catch (error) {
+    showToast(error.message || 'Download failed', 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2333,17 +2473,21 @@ function viewFolder(subId) {
 }
 
 function renderFileItem(f) {
-  let icon = 'insert_drive_file'; let c = 'var(--color-muted)';
-  if (f.type.includes('pdf')) { icon = 'picture_as_pdf'; c = 'var(--color-danger)'; }
-  else if (f.type.includes('image')) { icon = 'image'; c = 'var(--color-gold)'; }
-  else if (f.type.includes('word') || f.type.includes('document')) { icon = 'description'; c = 'var(--color-accent)'; }
-  const sizeStr = (f.size / 1024 / 1024).toFixed(2) + ' MB';
-  const dateStr = new Date(f.dateUploaded).toLocaleDateString();
-  
-  return '<div class="card flex-between" style="padding:12px 16px"><div class="flex-row gap-md">' +
+  let icon = 'insert_drive_file';
+  let c = 'var(--color-muted)';
+  const type = String(f.type || '');
+  if (type.includes('pdf')) { icon = 'picture_as_pdf'; c = 'var(--color-danger)'; }
+  else if (type.includes('image')) { icon = 'image'; c = 'var(--color-gold)'; }
+  else if (type.includes('word') || type.includes('document')) { icon = 'description'; c = 'var(--color-accent)'; }
+  const sizeStr = ((Number(f.size) || 0) / 1024 / 1024).toFixed(2) + ' MB';
+  const dateStr = new Date(f.dateUploaded || Date.now()).toLocaleDateString();
+  const id = escapeHtml(f.id);
+  const name = escapeHtml(f.name || 'Untitled file');
+
+  return '<div class="card file-card"><div class="flex-row gap-md file-card-main">' +
     '<div style="width:40px;height:40px;border-radius:8px;background:' + c + '20;color:' + c + ';display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined">' + icon + '</span></div>' +
-    '<div><strong style="font-size:14px;display:block;margin-bottom:2px" class="truncate">' + f.name + '</strong><span class="text-xs text-muted">' + sizeStr + ' • ' + dateStr + '</span></div></div>' +
-    '<div class="flex-row gap-sm"><button class="btn btn-sm btn-outline" onclick="shareFileToGroup(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">group</span> Share to Group</button><button class="btn btn-sm btn-outline" onclick="downloadFile(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">download</span></button><button class="btn btn-sm" style="color:var(--color-danger)" onclick="deleteFile(\'' + f.id + '\')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button></div></div>';
+    '<div style="min-width:0"><strong style="font-size:14px;display:block;margin-bottom:2px" class="truncate">' + name + '</strong><span class="text-xs text-muted">' + sizeStr + ' &bull; ' + dateStr + '</span></div></div>' +
+    '<div class="file-actions-wrap"><div class="file-actions-scroll"><button class="btn btn-sm btn-outline" onclick="shareFileToGroup(\'' + id + '\')"><span class="material-symbols-outlined" style="font-size:14px">group</span> Share to Group</button><button class="btn btn-sm btn-outline" onclick="downloadFile(\'' + id + '\')" aria-label="Download ' + name + '"><span class="material-symbols-outlined" style="font-size:14px">download</span></button><button class="btn btn-sm" style="color:var(--color-danger)" onclick="deleteFile(\'' + id + '\')" aria-label="Delete ' + name + '"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button></div></div></div>';
 }
 
 function updateStorageDisplay(sizeBytes) {
@@ -2390,6 +2534,7 @@ function uploadFile() {
   reader.onload = e => {
     document.getElementById('upload-progress').style.width = '100%';
     const data = { id: ScholarDB.uid(), subjectId: document.getElementById('file-subject').value, name: file.name, type: file.type, size: file.size, data: e.target.result, dateUploaded: Date.now() };
+    cacheFileBlob(data, file).catch(() => {});
     const tx = fileDB.transaction('files', 'readwrite');
     tx.objectStore('files').add(data);
     tx.oncomplete = () => { showToast('File uploaded', 'success'); closeFileModal(); renderFiles(); };
@@ -2400,15 +2545,14 @@ function uploadFile() {
 
 function downloadFile(id) {
   const tx = fileDB.transaction('files', 'readonly');
-  tx.objectStore('files').get(id).onsuccess = e => {
+  tx.objectStore('files').get(id).onsuccess = async e => {
     const f = e.target.result;
     if (!f) return;
-    const a = document.createElement('a');
-    a.href = f.data;
-    a.download = f.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      await downloadFileBlob(f);
+    } catch (error) {
+      showToast(error.message || 'Download failed', 'error');
+    }
   };
 }
 
@@ -2419,6 +2563,7 @@ async function shareFileToGroup(id) {
   tx.objectStore('files').get(id).onsuccess = async e => {
     const f = e.target.result;
     if (!f) return;
+    cacheFileBlob(f).catch(() => {});
     const sub = ScholarDB.getSubjectById(f.subjectId);
     const member = getLocalMember();
     const base64 = String(f.data || '').includes(',') ? String(f.data).split(',')[1] : String(f.data || '');

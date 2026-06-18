@@ -1,4 +1,6 @@
-const CACHE_NAME = 'scholarai-v9';
+const CACHE_NAME = 'scholarai-v10';
+const FILE_CACHE_NAME = 'scholarai-file-blobs-v1';
+const FILE_CACHE_PREFIX = '/__scholarai_file_cache/';
 const APP_ASSETS = [
   './',
   'index.html',
@@ -22,7 +24,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(cacheNames => Promise.all(
-      cacheNames.map(cacheName => cacheName === CACHE_NAME ? null : caches.delete(cacheName))
+      cacheNames.map(cacheName => (cacheName === CACHE_NAME || cacheName === FILE_CACHE_NAME) ? null : caches.delete(cacheName))
     ))
   );
   self.clients.claim();
@@ -88,6 +90,26 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/') || url.hostname.includes('onrender.com')) return;
+
+  if (url.pathname.startsWith(FILE_CACHE_PREFIX)) {
+    event.respondWith(caches.match(event.request).then(cached => cached || new Response('File is not cached on this device.', { status: 404 })));
+    return;
+  }
+
+  if (url.hostname.includes('firebasestorage.googleapis.com') || url.hostname.includes('storage.googleapis.com')) {
+    event.respondWith(
+      caches.open(FILE_CACHE_NAME).then(cache =>
+        cache.match(event.request).then(cached => {
+          const fresh = fetch(event.request).then(response => {
+            if (response && response.status === 200) cache.put(event.request, response.clone());
+            return response;
+          }).catch(() => cached || Response.error());
+          return cached || fresh;
+        })
+      )
+    );
+    return;
+  }
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
